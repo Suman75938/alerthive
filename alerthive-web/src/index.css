@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme Variables ────────────────────────────────────────────── */
+/* Semantic colors use "R G B" channel format so Tailwind opacity
+   modifiers (e.g. bg-critical/10) work via rgb(.../<alpha-value>)  */
+:root {
+  /* Light mode (default) */
+  --color-primary: 77 20 140;
+  --color-primary-dark: 58 15 107;
+  --color-primary-light: 107 41 184;
+  --color-accent: 255 98 0;
+  --color-accent-dark: 204 78 0;
+  --color-bg: #F7F5FF;
+  --color-surface: #FFFFFF;
+  --color-surface-light: #F0ECFF;
+  --color-surface-highlight: #E6E0FF;
+  --color-border: #CEC5EE;
+  --color-border-light: #B5A9E0;
+  --color-critical: 220 38 38;
+  --color-high: 255 98 0;
+  --color-medium: 217 119 6;
+  --color-low: 5 150 105;
+  --color-info: 37 99 235;
+  --color-text-primary: #1A0E33;
+  --color-text-secondary: #4A3A6B;
+  --color-text-muted: #7A6B9A;
+}
+
+.dark {
+  /* Dark mode */
+  --color-primary: 149 81 230;
+  --color-primary-dark: 120 52 200;
+  --color-primary-light: 178 120 255;
+  --color-bg: #0D0A18;
+  --color-surface: #160D2A;
+  --color-surface-light: #1E1440;
+  --color-surface-highlight: #261852;
+  --color-border: #2D1A4A;
+  --color-border-light: #3D2060;
+  --color-critical: 255 71 87;
+  --color-high: 255 98 0;
+  --color-medium: 255 165 2;
+  --color-low: 46 213 115;
+  --color-info: 30 144 255;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B0A8C8;
+  --color-text-muted: #7A6A90;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}

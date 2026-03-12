@@ -1,0 +1,69 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL ───────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alerthive
+      POSTGRES_PASSWORD: alerthive
+      POSTGRES_DB: alerthive_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alerthive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API (Node/Express) ───────────────────────────────────────────
+  api:
+    build:
+      context: ./alerthive-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      PORT: 4000
+      DATABASE_URL: postgresql://alerthive:alerthive@db:5432/alerthive_db
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-minimum-32-chars!!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-minimum-32-chars!!}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-24h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      API_BASE_PATH: /api/v1
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ALERTHIVE_WEBHOOK_SECRET: ${ALERTHIVE_WEBHOOK_SECRET:-alerthive-dt-secret-2026}
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-localhost:9092}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Frontend (Vite/React) ────────────────────────────────────────
+  web:
+    build:
+      context: ./alerthive-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000/api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:

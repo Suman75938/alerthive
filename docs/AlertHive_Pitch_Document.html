@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlertHive – Executive Pitch Document</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      color: #1a1a2e;
+      background: #f4f6fb;
+      padding: 20px;
+    }
+
+    .page {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.12);
+    }
+
+    /* COVER */
+    .cover {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 70px 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: rgba(99,102,241,0.15);
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.10);
+    }
+    .cover-badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.3);
+      border: 1px solid rgba(99,102,241,0.5);
+      color: #a5b4fc;
+      font-size: 8pt;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+    .cover h1 {
+      font-size: 38pt;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .cover h1 span { color: #818cf8; }
+    .cover-tagline {
+      font-size: 13pt;
+      color: #94a3b8;
+      font-weight: 300;
+      margin-bottom: 40px;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .cover-meta-item label {
+      display: block;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+    .cover-meta-item span {
+      font-size: 10pt;
+      color: #e2e8f0;
+      font-weight: 500;
+    }
+
+    /* BODY CONTENT */
+    .content { padding: 50px 60px; }
+
+    /* TOC */
+    .toc {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin-bottom: 40px;
+    }
+    .toc h3 {
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #6366f1;
+      margin-bottom: 14px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 40px;
+    }
+    .toc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 9.5pt;
+      color: #475569;
+    }
+    .toc-num {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #6366f1;
+      width: 18px;
+      flex-shrink: 0;
+    }
+
+    /* SECTION */
+    .section { margin-bottom: 38px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+    .section-num {
+      background: #6366f1;
+      color: white;
+      font-size: 8.5pt;
+      font-weight: 700;
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    p { line-height: 1.75; color: #374151; margin-bottom: 10px; font-size: 10.5pt; }
+
+    /* CALLOUT BOXES */
+    .callout {
+      border-left: 4px solid #6366f1;
+      background: #f5f3ff;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 14px 0;
+    }
+    .callout.green { border-color: #10b981; background: #f0fdf4; }
+    .callout.amber { border-color: #f59e0b; background: #fffbeb; }
+    .callout.red   { border-color: #e11d48; background: #fff1f2; }
+    .callout p { margin: 0; font-size: 10pt; }
+    .callout strong { color: #1e293b; }
+
+    /* GRID CARDS */
+    .card-grid {
+      display: grid;
+      gap: 14px;
+      margin: 14px 0;
+    }
+    .card-grid-2 { grid-template-columns: 1fr 1fr; }
+    .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 18px;
+      background: #fff;
+    }
+    .card-icon {
+      font-size: 18pt;
+      margin-bottom: 8px;
+    }
+    .card h4 {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .card p { font-size: 9.5pt; color: #64748b; margin: 0; line-height: 1.6; }
+    .card.accent { border-color: #c7d2fe; background: #f5f3ff; }
+    .card.accent h4 { color: #4338ca; }
+
+    /* PROBLEM LIST */
+    .problem-list { list-style: none; margin: 10px 0; }
+    .problem-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 10pt;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .problem-list li:last-child { border-bottom: none; }
+    .bullet {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #e11d48;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .bullet.green { background: #10b981; }
+    .bullet.indigo { background: #6366f1; }
+    .bullet.amber { background: #f59e0b; }
+
+    /* PROS CONS TABLE */
+    .comparison-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 9.5pt; }
+    .comparison-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 8.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .comparison-table th.pro-h { background: #f0fdf4; color: #065f46; border-bottom: 2px solid #10b981; }
+    .comparison-table th.con-h { background: #fff1f2; color: #9f1239; border-bottom: 2px solid #e11d48; }
+    .comparison-table td {
+      padding: 8px 14px;
+      vertical-align: top;
+      line-height: 1.6;
+      color: #374151;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .tag-pro  { color: #10b981; font-weight: 700; margin-right: 6px; }
+    .tag-con  { color: #e11d48; font-weight: 700; margin-right: 6px; }
+
+    /* TOOL COMPARISON */
+    .tool-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 9pt; }
+    .tool-table th {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 8.5pt;
+      font-weight: 600;
+    }
+    .tool-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .tool-table tr:nth-child(even) td { background: #f8fafc; }
+    .check { color: #10b981; font-weight: 700; }
+    .cross { color: #e11d48; font-weight: 700; }
+    .partial { color: #f59e0b; font-weight: 700; }
+
+    /* TIMELINE */
+    .timeline { margin: 14px 0; }
+    .timeline-item {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .timeline-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .timeline-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #6366f1;
+      color: white;
+      font-size: 8.5pt;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .timeline-line {
+      width: 2px;
+      flex: 1;
+      background: #e2e8f0;
+      margin-top: 4px;
+    }
+    .timeline-content { padding-top: 4px; padding-bottom: 8px; }
+    .timeline-content h4 {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 3px;
+    }
+    .timeline-content p { font-size: 9.5pt; color: #64748b; margin: 0; line-height: 1.6; }
+    .timeline-tag {
+      display: inline-block;
+      background: #f0f0ff;
+      color: #6366f1;
+      font-size: 7.5pt;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 10px;
+      margin-bottom: 4px;
+    }
+
+    /* ASK SECTION */
+    .ask-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 14px 0;
+    }
+    .ask-card {
+      border: 2px solid #c7d2fe;
+      border-radius: 12px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f3ff, #eef2ff);
+      text-align: center;
+    }
+    .ask-card .ask-number {
+      font-size: 28pt;
+      font-weight: 800;
+      color: #4338ca;
+      line-height: 1;
+    }
+    .ask-card .ask-label {
+      font-size: 9pt;
+      color: #6366f1;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    .ask-card .ask-desc {
+      font-size: 9pt;
+      color: #64748b;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    /* FOOTER */
+    .footer {
+      background: #1e293b;
+      padding: 24px 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      font-size: 14pt;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.3px;
+    }
+    .footer-brand span { color: #818cf8; }
+    .footer-right { font-size: 8.5pt; color: #64748b; text-align: right; line-height: 1.6; }
+
+    /* PRINT */
+    @media print {
+      body { background: white; padding: 0; }
+      .page { box-shadow: none; }
+    }
+
+    /* HIGHLIGHT STAT */
+    .stat-row {
+      display: flex;
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .stat-box {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-box .stat-val {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #4338ca;
+      line-height: 1;
+    }
+    .stat-box .stat-lbl {
+      font-size: 8.5pt;
+      color: #64748b;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    h3.sub {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 18px 0 8px;
+    }
+
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 28px 0; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-badge">Internal Initiative Proposal</div>
+    <h1>Alert<span>Hive</span></h1>
+    <div class="cover-tagline">Unified Alert &amp; Incident Management for Engineering Teams</div>
+    <div class="cover-meta">
+      <div class="cover-meta-item"><label>Prepared By</label><span>Suman Chakraborty — SRE Architect</span></div>
+      <div class="cover-meta-item"><label>Manager</label><span>Arun Bijapur</span></div>
+      <div class="cover-meta-item"><label>Director</label><span>Anshuman Bagh</span></div>
+      <div class="cover-meta-item"><label>Scope</label><span>Projects Under Anshuman Bagh's Portfolio</span></div>
+      <div class="cover-meta-item"><label>Date</label><span>March 2026</span></div>
+      <div class="cover-meta-item"><label>Classification</label><span>Internal — Confidential</span></div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="content">
+
+    <!-- TOC -->
+    <div class="toc">
+      <h3>Contents</h3>
+      <div class="toc-grid">
+        <div class="toc-item"><span class="toc-num">01</span> Executive Summary</div>
+        <div class="toc-item"><span class="toc-num">06</span> Pros &amp; Cons</div>
+        <div class="toc-item"><span class="toc-num">02</span> The Problem We're Solving</div>
+        <div class="toc-item"><span class="toc-num">07</span> Future Possibilities at FedEx Scale</div>
+        <div class="toc-item"><span class="toc-num">03</span> What AlertHive Does</div>
+        <div class="toc-item"><span class="toc-num">08</span> Proposed Phased Roadmap</div>
+        <div class="toc-item"><span class="toc-num">04</span> Why Existing Tools Fall Short</div>
+        <div class="toc-item"><span class="toc-num">09</span> The Ask</div>
+        <div class="toc-item"><span class="toc-num">05</span> Gap Analysis vs. Current Tools</div>
+        <div class="toc-item"><span class="toc-num">10</span> Summary &amp; Call to Action</div>
+      </div>
+    </div>
+
+    <!-- 01 EXECUTIVE SUMMARY -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">01</div>
+        <h2>Executive Summary</h2>
+      </div>
+      <p>Across the projects under our director's portfolio, engineering and operations teams receive hundreds of alerts daily from multiple disconnected monitoring sources. There is currently no single place where a manager, lead, or on-call engineer can see a consolidated, prioritized, real-time picture of what is happening across all systems and services.</p>
+      <p><strong>AlertHive</strong> is a lightweight, internally-built alert aggregation and incident management platform designed specifically to solve this problem — first at our portfolio level, and eventually at a broader FedEx scale.</p>
+      <div class="callout">
+        <p><strong>The core proposition:</strong> One dashboard. All projects. Real-time awareness. From alert noise → actionable insight in under 60 seconds.</p>
+      </div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-val">5+</div><div class="stat-lbl">Projects currently generating siloed alerts</div></div>
+        <div class="stat-box"><div class="stat-val">0</div><div class="stat-lbl">Unified views available today</div></div>
+        <div class="stat-box"><div class="stat-val">~40%</div><div class="stat-lbl">Estimated time lost to manual alert triage per week</div></div>
+        <div class="stat-box"><div class="stat-val">1 tool</div><div class="stat-lbl">To replace fragmented dashboards &amp; manual processes</div></div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 02 PROBLEM -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">02</div>
+        <h2>The Problem We're Solving</h2>
+      </div>
+      <p>Today, across the projects in our portfolio, the following pain points exist that directly impact team velocity, on-call quality, and engineering confidence:</p>
+
+      <ul class="problem-list">
+        <li><span class="bullet"></span><strong>Alert fragmentation:</strong> Each project uses its own monitoring stack (Nagios, Kubernetes alerts, CloudWatch, Prometheus, Dynatrace, etc.). There is no cross-project visibility — leads and managers must log into multiple tools to understand the current state of the portfolio.</li>
+        <li><span class="bullet"></span><strong>No incident correlation:</strong> An infrastructure outage impacting three projects triggers three separate alert streams in three separate tools. No one connects the dots in real time.</li>
+        <li><span class="bullet"></span><strong>Reactive, not proactive:</strong> Teams find out about critical issues from user complaints or escalations — not from a system that surfaced the pattern early. There is no trend analysis or SLA breach prediction.</li>
+        <li><span class="bullet"></span><strong>On-call is invisible:</strong> There is no central roster showing who is on call for which project, who to escalate to, and what the current incident load looks like for each person.</li>
+        <li><span class="bullet"></span><strong>Manual tracking and reporting:</strong> Incident timelines, MTTR (Mean Time to Resolve), and post-mortems are tracked in spreadsheets or emails — not automatically captured.</li>
+        <li><span class="bullet"></span><strong>No historical intelligence:</strong> Teams cannot answer simple questions like: "Which service caused the most incidents last quarter?" or "Are our alerts improving or getting worse month over month?" without significant manual effort.</li>
+      </ul>
+
+      <div class="callout amber">
+        <p><strong>Impact:</strong> This overhead quietly costs the organization in delayed incident response, duplicated troubleshooting effort, and reduced confidence during director-level or stakeholder reviews.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 03 WHAT IT DOES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">03</div>
+        <h2>What AlertHive Does</h2>
+      </div>
+      <p>AlertHive is a purpose-built, full-stack web application that aggregates, normalizes, and visualizes alerts and incidents across all projects in the portfolio. It provides decision-makers and engineers a single pane of glass to manage operational health.</p>
+
+      <div class="card-grid card-grid-3">
+        <div class="card accent">
+          <div class="card-icon">📡</div>
+          <h4>Alert Aggregation</h4>
+          <p>Pulls alerts from all monitoring sources via webhooks and APIs into a single, normalized feed with priority tagging.</p>
+        </div>
+        <div class="card accent">
+          <div class="card-icon">🔥</div>
+          <h4>Incident Management</h4>
+          <p>Auto-creates incidents from alert patterns. Tracks timeline, ownership, status, and resolution with full audit trail.</p>
+        </div>
+        <div class="card accent">
+          <div class="card-icon">📊</div>
+          <h4>Analytics Dashboard</h4>
+          <p>Visual trends for alert volume, incident creation, resolution rates, MTTR, and SLA compliance — by project and priority.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🕐</div>
+          <h4>SLA Tracking</h4>
+          <p>Defines and monitors SLA thresholds per priority. Flags breach risks before they occur.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">👥</div>
+          <h4>On-Call Management</h4>
+          <p>Central roster of on-call engineers per project with escalation paths and real-time contact visibility.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎫</div>
+          <h4>Ticket Integration</h4>
+          <p>Auto-creates tickets for critical incidents and links them to alert chains for full context in one place.</p>
+        </div>
+      </div>
+
+      <div class="callout green">
+        <p><strong>Result:</strong> Engineers spend less time navigating tools and more time resolving problems. Managers have instant, accurate visibility for stakeholder conversations.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 04 WHY EXISTING TOOLS FALL SHORT -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">04</div>
+        <h2>Why Existing Tools Fall Short</h2>
+      </div>
+      <p>Our teams currently use a combination of tools including <strong>PDSM</strong> (Project/Delivery/Service Management), Jira, email-based escalations, and individual project monitoring dashboards. While each has value in its domain, none of them — individually or collectively — solve the operational awareness problem AlertHive addresses.</p>
+
+      <h3 class="sub">What PDSM Is Good At</h3>
+      <ul class="problem-list">
+        <li><span class="bullet green"></span>Project planning, milestones, and delivery tracking</li>
+        <li><span class="bullet green"></span>Resource allocation and capacity planning</li>
+        <li><span class="bullet green"></span>Roadmap and portfolio-level reporting to leadership</li>
+        <li><span class="bullet green"></span>Risk and change management workflows</li>
+      </ul>
+
+      <h3 class="sub">What PDSM Cannot Serve</h3>
+      <ul class="problem-list">
+        <li><span class="bullet"></span><strong>Real-time operational alerting:</strong> PDSM is a planning and governance tool — it is not designed to receive, route, or triage live system alerts from infrastructure or application monitoring tools.</li>
+        <li><span class="bullet"></span><strong>Alert correlation and deduplication:</strong> PDSM has no mechanism to aggregate duplicate alerts from multiple sources and surface only the actionable ones.</li>
+        <li><span class="bullet"></span><strong>Automated incident lifecycle:</strong> Incident creation in PDSM is manual, requires human initiation, and lacks the automated triggering and enrichment AlertHive provides.</li>
+        <li><span class="bullet"></span><strong>SLA response-time tracking at alert level:</strong> PDSM tracks delivery SLAs — not operational SLAs for incident response time (P1 = 15 min, P2 = 1 hr, etc.).</li>
+        <li><span class="bullet"></span><strong>On-call scheduling and escalation:</strong> There is no on-call roster or paging flow in PDSM — this is entirely manual today.</li>
+        <li><span class="bullet"></span><strong>Cross-project operational trends:</strong> PDSM cannot answer "which service broke the most last month" or "is alert volume trending up or down across the portfolio."</li>
+      </ul>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 05 GAP ANALYSIS TABLE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">05</div>
+        <h2>Capability Gap Analysis</h2>
+      </div>
+
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th style="width:30%">Capability</th>
+            <th style="width:17%">PDSM</th>
+            <th style="width:17%">Jira / Ticketing</th>
+            <th style="width:17%">Project Monitors</th>
+            <th style="width:19%">AlertHive</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Cross-project unified alert view</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="cross">✗ Siloed</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Real-time alert streaming</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="partial">~ Per tool</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Alert deduplication &amp; correlation</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Automated incident creation</td><td class="cross">✗ Manual</td><td class="partial">~ Manual</td><td class="cross">✗ No</td><td class="check">✔ Automated</td></tr>
+          <tr><td>Operational SLA tracking (P1/P2…)</td><td class="cross">✗ No</td><td class="partial">~ With plugins</td><td class="cross">✗ No</td><td class="check">✔ Built-in</td></tr>
+          <tr><td>On-call roster &amp; escalation</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Historical trend analytics</td><td class="partial">~ Project level</td><td class="partial">~ With config</td><td class="partial">~ Per tool</td><td class="check">✔ Cross-portfolio</td></tr>
+          <tr><td>Priority-based alert classification</td><td class="cross">✗ No</td><td class="partial">~ Severity tags</td><td class="partial">~ Per tool</td><td class="check">✔ Yes</td></tr>
+          <tr><td>MTTR / Resolution analytics</td><td class="cross">✗ No</td><td class="partial">~ With reports</td><td class="cross">✗ No</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Role-based access (Dev / Mgr / Admin)</td><td class="check">✔ Yes</td><td class="check">✔ Yes</td><td class="partial">~ Varies</td><td class="check">✔ Yes</td></tr>
+          <tr><td>Infra vs. Application alert breakdown</td><td class="cross">✗ No</td><td class="cross">✗ No</td><td class="partial">~ Per tool</td><td class="check">✔ Yes</td></tr>
+          <tr><td>FedEx internal data — no external SaaS</td><td class="check">✔ Yes</td><td class="check">✔ Yes</td><td class="cross">✗ Varies</td><td class="check">✔ Fully internal</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:8.5pt;color:#94a3b8;margin-top:6px;"> ✔ Supported &nbsp;|&nbsp; ✗ Not supported &nbsp;|&nbsp; ~ Partial / workaround required</p>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 06 PROS CONS -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">06</div>
+        <h2>Pros &amp; Considerations</h2>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th class="pro-h" style="width:50%">✔ Advantages of AlertHive</th>
+            <th class="con-h" style="width:50%">⚠ Considerations &amp; Mitigations</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag-pro">+</span>Purpose-built for our specific portfolio structure — not a generic tool that requires heavy configuration</td>
+            <td><span class="tag-con">△</span>Initial setup requires one-time integration effort to connect each project's monitoring source via webhook/API</td>
+          </tr>
+          <tr>
+            <td><span class="tag-pro">+</span>Fully internal — no sensitive operational data leaves FedEx infrastructure, no SaaS vendor dependency</td>
+            <td><span class="tag-con">△</span>Requires ongoing maintenance ownership; mitigated by keeping the tech stack simple and well-documented</td>
+          </tr>
+          <tr>
+            <td><span class="tag-pro">+</span>Dramatically reduces time spent switching between monitoring tools during incidents</td>
+            <td><span class="tag-con">△</span>Adoption requires team buy-in; mitigated by making it the single source of truth and demoing value early</td>
+          </tr>
+          <tr>
+            <td><span class="tag-pro">+</span>Provides director-level visibility with zero manual reporting — dashboards are always live</td>
+            <td><span class="tag-con">△</span>Alert data accuracy depends on source systems being properly configured — a one-time effort per team</td>
+          </tr>
+          <tr>
+            <td><span class="tag-pro">+</span>Reusable and scalable — the same platform can be extended to other directorates or business units</td>
+            <td><span class="tag-con">△</span>Security review required before production deployment; architecture follows FedEx security standards (JWT auth, RBAC, rate limiting)</td>
+          </tr>
+          <tr>
+            <td><span class="tag-pro">+</span>Eliminates duplicate incident tracking across Jira + manual spreadsheets, saving hours per week</td>
+            <td><span class="tag-con">△</span>Not a replacement for PDSM or Jira — it complements them by handling operational alerting which they're not designed for</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 07 FUTURE POSSIBILITIES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">07</div>
+        <h2>Future Possibilities at FedEx Scale</h2>
+      </div>
+      <p>AlertHive is designed with extensibility as a first principle. What starts as a portfolio-level tool has a credible path to broader FedEx adoption:</p>
+
+      <div class="card-grid card-grid-2">
+        <div class="card">
+          <div class="card-icon">🏢</div>
+          <h4>Department-Wide Rollout</h4>
+          <p>Once validated in our portfolio, the same deployment can be extended to other directors' portfolios with minimal configuration — each gets their own scoped dashboard view.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🤖</div>
+          <h4>AI-Assisted Alert Triage</h4>
+          <p>Integrate ML models to predict alert severity, detect anomaly patterns, and auto-suggest runbook actions — reducing on-call cognitive load from day one of an incident.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔗</div>
+          <h4>FedEx Ecosystem Integration</h4>
+          <p>Native connectors to ServiceNow, Remedy, or FedEx's internal ITSM platform to auto-create and close tickets as alert states change — eliminating double-entry.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📱</div>
+          <h4>Mobile On-Call App</h4>
+          <p>The React Native mobile app (already scaffolded) enables on-call engineers to acknowledge, escalate, and resolve incidents from their phone with push notifications for critical alerts.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📈</div>
+          <h4>Executive KPI Reporting</h4>
+          <p>Automated weekly/monthly operational health reports for senior leadership — pulled live from AlertHive data rather than manually assembled from multiple sources.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🌐</div>
+          <h4>Cross-BU Observability</h4>
+          <p>As a FedEx-wide platform, AlertHive becomes the single operational intelligence layer across Ground, Express, Freight, and Corporate IT — standardizing how the company responds to service disruptions.</p>
+        </div>
+      </div>
+
+      <div class="callout green">
+        <p><strong>Strategic value:</strong> Any investment made at the portfolio level is fully recyclable at scale. The architecture is Kubernetes-ready, multi-tenant capable, and designed to handle enterprise alert volumes from day one.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 08 ROADMAP -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">08</div>
+        <h2>Proposed Phased Roadmap</h2>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-marker"><div class="timeline-dot">1</div><div class="timeline-line"></div></div>
+          <div class="timeline-content">
+            <div class="timeline-tag">Phase 1 — Months 1–2</div>
+            <h4>Foundation &amp; Pilot</h4>
+            <p>Deploy AlertHive internally for 2–3 highest-volume projects. Connect monitoring sources. Onboard on-call teams. Validate alert accuracy and dashboard usability with real data.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-marker"><div class="timeline-dot">2</div><div class="timeline-line"></div></div>
+          <div class="timeline-content">
+            <div class="timeline-tag">Phase 2 — Months 3–4</div>
+            <h4>Full Portfolio Coverage</h4>
+            <p>Extend to all projects under the director's portfolio. Enable SLA tracking, automated incident creation, and historical analytics. Conduct team training and adoption review.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-marker"><div class="timeline-dot">3</div><div class="timeline-line"></div></div>
+          <div class="timeline-content">
+            <div class="timeline-tag">Phase 3 — Months 5–6</div>
+            <h4>Integration &amp; Intelligence</h4>
+            <p>Connect to Jira / ServiceNow for ticket sync. Add alert correlation logic. Begin capturing MTTR baselines to measure ROI. Prepare executive reporting view for director use.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-marker"><div class="timeline-dot">4</div></div>
+          <div class="timeline-content">
+            <div class="timeline-tag">Phase 4 — Month 7+</div>
+            <h4>Scale &amp; Evangelize</h4>
+            <p>Present results to adjacent directorates. Package for broader FedEx adoption. Explore AI-assisted triage and mobile on-call capabilities. Formalize as an internal platform product.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 09 THE ASK -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">09</div>
+        <h2>The Ask</h2>
+      </div>
+      <p>To take AlertHive from its current prototype state to a production-ready internal tool deployed across our portfolio, we are requesting the following investment:</p>
+
+      <div class="ask-grid">
+        <div class="ask-card">
+          <div class="ask-number">~20%</div>
+          <div class="ask-label">Engineering Time</div>
+          <div class="ask-desc">Approximately 1 day/week for 1–2 engineers over a 3-month period to complete production hardening, integrations, and go-live support.</div>
+        </div>
+        <div class="ask-card">
+          <div class="ask-number">1</div>
+          <div class="ask-label">Dedicated Resource (Optional)</div>
+          <div class="ask-desc">Ideally, one engineer assigned as primary owner for the first 2 months to accelerate Phase 1 and Phase 2 delivery milestones.</div>
+        </div>
+        <div class="ask-card">
+          <div class="ask-number">Minimal</div>
+          <div class="ask-label">Infrastructure Cost</div>
+          <div class="ask-desc">Runs on existing internal Kubernetes cluster or a small VM. No external SaaS licensing. Estimated monthly infra cost: near-zero on existing shared infrastructure.</div>
+        </div>
+        <div class="ask-card">
+          <div class="ask-number">3 hrs</div>
+          <div class="ask-label">Per Team Onboarding</div>
+          <div class="ask-desc">Each project team needs ~3 hours to configure their monitoring webhooks and validate their alert feed. One-time effort per team.</div>
+        </div>
+      </div>
+
+      <div class="callout green" style="margin-top:18px;">
+        <p><strong>Expected return:</strong> Conservative estimate of 4–6 hours/week saved per project team in manual alert triage, incident coordination, and status reporting. Across 5 projects, that is <strong>20–30 hours/week</strong> returned to engineering productivity.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- 10 CLOSING -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-num">10</div>
+        <h2>Summary &amp; Call to Action</h2>
+      </div>
+
+      <p>AlertHive is not a moonshot. It is a pragmatic, engineering-first solution to a real operational pain that our teams face every day. The prototype already exists. The architecture is proven. The only thing missing is dedicated time and sponsorship to take it across the finish line.</p>
+
+      <p>The investment is modest. The impact is immediate and measurable. And the long-term potential — as a platform that can be scaled across FedEx — makes it a particularly high-value initiative to back early.</p>
+
+      <div class="callout">
+        <p><strong>Next step:</strong> Approve a 6-week pilot with 2–3 projects. We will demonstrate measurable improvement in incident response time and alert visibility, and present data-backed results before requesting any further resources.</p>
+      </div>
+
+      <div class="card-grid card-grid-3" style="margin-top:20px;">
+        <div class="card" style="text-align:center;padding:20px 14px;">
+          <div class="card-icon">🎯</div>
+          <h4>The Goal</h4>
+          <p>Operational clarity across every project in the portfolio, starting today.</p>
+        </div>
+        <div class="card" style="text-align:center;padding:20px 14px;">
+          <div class="card-icon">⏱️</div>
+          <h4>The Timeline</h4>
+          <p>Meaningful results visible within 6 weeks of kickoff.</p>
+        </div>
+        <div class="card" style="text-align:center;padding:20px 14px;">
+          <div class="card-icon">🚀</div>
+          <h4>The Potential</h4>
+          <p>A reusable platform that can scale to serve all of FedEx engineering.</p>
+        </div>
+      </div>
+
+      <p style="margin-top:28px;font-size:10pt;color:#64748b;text-align:center;">
+        Prepared by <strong style="color:#1e293b;">Suman Chakraborty</strong> &nbsp;·&nbsp; SRE Architect &nbsp;·&nbsp; admin@alerthive.com &nbsp;·&nbsp; March 2026
+      </p>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-brand">Alert<span>Hive</span></div>
+    <div class="footer-right">
+      Internal Initiative Proposal — Confidential<br />
+      For review by [Director / Manager Name] · March 2026
+    </div>
+  </div>
+
+</div><!-- /page -->
+</body>
+</html>
