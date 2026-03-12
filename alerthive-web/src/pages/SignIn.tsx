@@ -25,7 +25,7 @@ export default function SignIn() {
   }
 
   const demos = [
-    { label: 'Admin', email: 'admin@alerthive.com', pass: 'REDACTED_SEED_PASSWORD' },
+    { label: 'Admin', email: 'suman75938@gmail.com', pass: 'Ah@2026#Sx!kR9' },
     { label: 'Developer', email: 'mike@alerthive.com', pass: 'dev123' },
     { label: 'End User', email: 'jordan@example.com', pass: 'user123' },
   ];

@@ -4,7 +4,7 @@ import { apiPost, tokenStore } from '../lib/api';
 
 // ─── Seed users (local fallback when API is offline) ─────────────────────────
 export const SEED_USERS: (User & { password: string })[] = [
-  { id: 'u-001', name: 'Suman Chakraborty', email: 'admin@alerthive.com', password: 'REDACTED_SEED_PASSWORD', role: 'admin', team: 'Platform Team', phone: '+1-555-0199', createdAt: '2025-01-01T00:00:00Z' },
+  { id: 'u-001', name: 'Suman Chakraborty', email: 'suman75938@gmail.com', password: 'Ah@2026#Sx!kR9', role: 'admin', team: 'Platform Team', phone: '+1-555-0199', createdAt: '2025-01-01T00:00:00Z' },
   { id: 'u-002', name: 'Mike Johnson', email: 'mike@alerthive.com',  password: 'dev123',   role: 'developer', team: 'Platform Team',        phone: '+1-555-0102', createdAt: '2025-01-05T00:00:00Z' },
   { id: 'u-003', name: 'Alex Rivera',  email: 'alex@alerthive.com',  password: 'dev123',   role: 'developer', team: 'Infrastructure Team',  phone: '+1-555-0103', createdAt: '2025-01-10T00:00:00Z' },
   { id: 'u-004', name: 'Emily Watson', email: 'emily@alerthive.com', password: 'dev123',   role: 'developer', team: 'Security Team',        phone: '+1-555-0104', createdAt: '2025-01-12T00:00:00Z' },

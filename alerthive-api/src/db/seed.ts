@@ -151,9 +151,9 @@ async function main() {
 
   console.log('\n🎉  Seed complete!');
   console.log('\nDemo login credentials:');
-  console.log('  Admin:     admin@alerthive.com  / REDACTED_SEED_PASSWORD');
-  console.log('  Developer: mike@alerthive.com   / dev123');
-  console.log('  End User:  jordan@example.com   / user123');
+  console.log('  Admin:     suman75938@gmail.com  / Ah@2026#Sx!kR9');
+  console.log('  Developer: mike@alerthive.com    / dev123');
+  console.log('  End User:  jordan@example.com    / user123');
 }
 
 main()
