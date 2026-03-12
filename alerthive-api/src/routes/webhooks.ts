@@ -547,4 +547,253 @@ router.get(
   }),
 );
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Splunk Webhooks
+//
+// Splunk fires a webhook alert action (POST) when a saved search threshold
+// is breached. AlertHive maps the result fields from your DSM latency search
+// to a structured alert + ticket.
+//
+// Payload format (Splunk Cloud / Enterprise ≥ 8.x):
+//   POST body: {
+//     sid, search_name, app, owner, results_link?,
+//     result: { service, environment, status, p95?, slo_95pct?, total_requests?, ... }
+//   }
+//
+// Splunk Config (Alerts → Add Actions → Webhook):
+//   URL: https://<your-host>/api/v1/webhooks/splunk/fedex-ito
+//   Header: X-AlertHive-Secret: <ALERTHIVE_WEBHOOK_SECRET>
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// result.status / alert-name keyword → AlertHive priority
+const SPLUNK_STATUS_MAP: Record<string, string> = {
+  CRITICAL:  'critical',
+  FATAL:     'critical',
+  HIGH:      'high',
+  ERROR:     'high',
+  WARNING:   'medium',
+  WARN:      'medium',
+  MEDIUM:    'medium',
+  LOW:       'low',
+  INFO:      'info',
+  NORMAL:    'info',
+};
+
+function splunkPriority(status: string, searchName: string): string {
+  const upper = status.toUpperCase();
+  if (SPLUNK_STATUS_MAP[upper]) return SPLUNK_STATUS_MAP[upper];
+  // Fall back to keyword scan of alert name
+  if (/critical|fatal/i.test(searchName)) return 'critical';
+  if (/high|error/i.test(searchName))     return 'high';
+  if (/warn/i.test(searchName))           return 'medium';
+  if (/low/i.test(searchName))            return 'low';
+  return 'medium';
+}
+
+// ── GET /api/v1/webhooks/splunk/:orgSlug — liveness probe ────────────────────
+router.get(
+  '/splunk/:orgSlug',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgSlug } = req.params as { orgSlug: string };
+    const org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
+    if (!org) {
+      res.status(404).json({ success: false, error: `Organisation '${orgSlug}' not found` } satisfies ApiResponse);
+      return;
+    }
+    res.json({
+      success: true,
+      data: {
+        message: 'AlertHive Splunk webhook is reachable',
+        org: org.name,
+        endpoint: `POST /api/v1/webhooks/splunk/${orgSlug}`,
+        secretRequired: !!WEBHOOK_SECRET,
+      },
+    } satisfies ApiResponse);
+  }),
+);
+
+/**
+ * POST /api/v1/webhooks/splunk/:orgSlug
+ *
+ * Accepts Splunk saved-search webhook alert action payloads.
+ * Parses result fields (service, environment, p95, slo_95pct, total_requests, status)
+ * and creates an alert + ticket in AlertHive.
+ *
+ * result.status NORMAL is treated as auto-resolution (closes the matching open alert).
+ */
+router.post(
+  '/splunk/:orgSlug',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!verifySecret(req, res)) return;
+
+    const { orgSlug } = req.params as { orgSlug: string };
+    const org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
+    if (!org) {
+      res.status(404).json({ success: false, error: `Organisation '${orgSlug}' not found` } satisfies ApiResponse);
+      return;
+    }
+
+    const body       = req.body as Record<string, unknown>;
+    const result     = (body.result ?? {}) as Record<string, unknown>;
+
+    const searchName   = safeStr(body.search_name ?? 'Unknown Splunk Alert', MAX_LEN.title);
+    const sid          = safeStr(body.sid ?? '', MAX_LEN.pid);
+    const resultsLink  = safeUrl(body.results_link ?? '');
+    const app          = safeStr(body.app ?? '', 80);
+
+    // Core result fields from your DSM latency search
+    const service      = safeStr(result.service ?? result.serviceName ?? '', MAX_LEN.entity);
+    const environment  = safeStr(result.environment ?? result.env ?? '', MAX_LEN.entity);
+    const rawStatus    = safeStr(result.status ?? result.severity ?? result.alert_level ?? '', 40);
+    const p95          = safeStr(result.p95 ?? result.p95_latency ?? '', 20);
+    const slo95pct     = safeStr(result.slo_95pct ?? result.slo_pct ?? '', 20);
+    const totalReqs    = safeStr(result.total_requests ?? result.request_count ?? '', 20);
+
+    const priority = splunkPriority(rawStatus, searchName);
+    const title    = `[Splunk] ${searchName}`;
+
+    logger.info({ msg: '[Splunk Webhook]', org: orgSlug, sid, searchName, rawStatus, service, environment });
+
+    // ── NORMAL status → auto-resolve ────────────────────────────────────────
+    if (rawStatus.toUpperCase() === 'NORMAL') {
+      const fingerprint = `splunk::${title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+      const existing = await prisma.alert.findFirst({
+        where: {
+          orgId:  org.id,
+          source: 'Splunk',
+          status: { in: ['open', 'acknowledged'] },
+          metadata: { path: ['fingerprint'], equals: fingerprint },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) {
+        await prisma.alert.update({
+          where: { id: existing.id },
+          data:  { status: 'closed', updatedAt: new Date() },
+        });
+        logger.info({ msg: '[Splunk Webhook] Alert auto-closed on NORMAL', alertId: existing.id, sid });
+      }
+      if (sid) {
+        const spTicket = await ticketService.createOrUpdateWebhookTicket(org.id, {
+          externalId: `SPL::${sid}`,
+          source:     'Splunk',
+          title,
+          description: `Splunk search '${searchName}' returned to NORMAL.`,
+          priority:   'low',
+          resolve:    true,
+        }).catch(() => null);
+        if (spTicket?.action === 'resolved') {
+          broadcast(org.id, { event: 'ticket.resolved', data: { id: spTicket.ticketId, source: 'Splunk' } });
+        }
+      }
+      res.json({ success: true, data: { message: 'Alert auto-closed on NORMAL status' } } satisfies ApiResponse);
+      return;
+    }
+
+    // ── Build message with all available metrics ─────────────────────────────
+    const msgParts: string[] = [];
+    if (service)     msgParts.push(`Service: ${service}.`);
+    if (environment) msgParts.push(`Environment: ${environment}.`);
+    if (totalReqs)   msgParts.push(`Total Requests: ${totalReqs}.`);
+    if (p95)         msgParts.push(`p95 Latency: ${p95} ms.`);
+    if (slo95pct)    msgParts.push(`SLO (95th pct): ${slo95pct}%.`);
+    if (rawStatus)   msgParts.push(`Status: ${rawStatus}.`);
+    if (app)         msgParts.push(`Splunk App: ${app}.`);
+    if (resultsLink) msgParts.push(`Results: ${resultsLink}`);
+
+    const message = msgParts.length > 0 ? msgParts.join(' ') : `Splunk alert fired: ${searchName}.`;
+
+    // Build tags
+    const tags: string[] = ['splunk'];
+    if (rawStatus)   tags.push(rawStatus.toLowerCase());
+    if (service)     tags.push(service.toLowerCase().replace(/\s+/g, '-').slice(0, 50));
+    if (environment) tags.push(environment.toLowerCase().replace(/\s+/g, '-').slice(0, 50));
+    if (app)         tags.push(app.toLowerCase().replace(/\s+/g, '-').slice(0, 40));
+
+    const alert = await alertService.createAlert(org.id, {
+      title,
+      message,
+      source:   'Splunk',
+      priority,
+      tags,
+    });
+
+    logger.info({ msg: '[Splunk Webhook] Alert created/deduped', alertId: alert.id, priority });
+
+    // Auto-create / update ticket
+    if (sid) {
+      const spTicket = await ticketService.createOrUpdateWebhookTicket(org.id, {
+        externalId:  `SPL::${sid}`,
+        source:      'Splunk',
+        title,
+        description: message,
+        priority,
+        tags,
+        rawPayload:  { sid, searchName, service, environment, rawStatus, p95, slo95pct, totalReqs, resultsLink },
+      }).catch((e) => { logger.warn({ msg: '[Splunk Webhook] Ticket upsert failed', err: (e as Error).message }); return null; });
+      if (spTicket?.action === 'created') {
+        broadcast(org.id, { event: 'ticket.created', data: { id: spTicket.ticketId, source: 'Splunk' } });
+        logger.info({ msg: '[Splunk Webhook] Ticket auto-created', ticketId: spTicket.ticketId, sid });
+      } else if (spTicket?.action === 'updated') {
+        broadcast(org.id, { event: 'ticket.updated', data: { id: spTicket.ticketId, source: 'Splunk' } });
+        logger.info({ msg: '[Splunk Webhook] Ticket auto-updated', ticketId: spTicket.ticketId, sid });
+      }
+    }
+
+    res.status(201).json({ success: true, data: alert } satisfies ApiResponse);
+  }),
+);
+
+// ── GET /api/v1/webhooks/splunk/:orgSlug/stats (JWT required) ─────────────────
+router.get(
+  '/splunk/:orgSlug/stats',
+  authenticate,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgSlug } = req.params as { orgSlug: string };
+    const org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
+    if (!org) {
+      res.status(404).json({ success: false, error: `Organisation '${orgSlug}' not found` } satisfies ApiResponse);
+      return;
+    }
+    const [totalAlerts, openAlerts, lastAlert] = await Promise.all([
+      prisma.alert.count({ where: { orgId: org.id, source: 'Splunk' } }),
+      prisma.alert.count({ where: { orgId: org.id, source: 'Splunk', status: { in: ['open', 'acknowledged'] } } }),
+      prisma.alert.findFirst({
+        where: { orgId: org.id, source: 'Splunk' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+    res.json({
+      success: true,
+      data: { totalAlerts, openAlerts, lastEventAt: lastAlert?.createdAt ?? null },
+    } satisfies ApiResponse);
+  }),
+);
+
+// ── POST /api/v1/webhooks/splunk/:orgSlug/send-test (JWT required) ────────────
+// Fires a test alert that mimics your DSM latency search payload.
+router.post(
+  '/splunk/:orgSlug/send-test',
+  authenticate,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { orgSlug } = req.params as { orgSlug: string };
+    const org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
+    if (!org) {
+      res.status(404).json({ success: false, error: `Organisation '${orgSlug}' not found` } satisfies ApiResponse);
+      return;
+    }
+    const alert = await alertService.createAlert(org.id, {
+      title:   '[Splunk] Warning: Latency Spike Observed in DSM Non-Prod',
+      message: 'Service: agent-interaction-service. Environment: eai-3541234-dev. Total Requests: 29. p95 Latency: 5060.40 ms. SLO (95th pct): 89.66%. Status: WARNING. [Test alert from AlertHive Integrations page]',
+      source:  'Splunk',
+      priority: 'medium',
+      tags:    ['splunk', 'warning', 'agent-interaction-service', 'eai-3541234-dev', 'latency', 'test'],
+    });
+    logger.info({ msg: '[Splunk Webhook] Test alert fired via /send-test', alertId: alert.id, user: req.user?.id });
+    res.status(201).json({ success: true, data: alert } satisfies ApiResponse);
+  }),
+);
+
 export default router;
+
