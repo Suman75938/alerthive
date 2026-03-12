@@ -24,7 +24,7 @@ async function main() {
 
   // ── Users ─────────────────────────────────────────────────────
   const seeds = [
-    { name: 'Suman Chakraborty', email: 'admin@alerthive.com',  password: 'REDACTED_SEED_PASSWORD',  role: UserRole.admin },
+    { name: 'Suman Chakraborty', email: 'suman75938@gmail.com',  password: 'Ah@2026#Sx!kR9',  role: UserRole.admin },
     { name: 'Mike Johnson',  email: 'mike@alerthive.com',   password: 'dev123',    role: UserRole.developer },
     { name: 'Alex Rivera',   email: 'alex@alerthive.com',   password: 'dev123',    role: UserRole.developer },
     { name: 'Emily Watson',  email: 'emily@alerthive.com',  password: 'dev123',    role: UserRole.developer },
