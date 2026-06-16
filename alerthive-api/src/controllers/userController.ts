@@ -161,3 +161,13 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   await prisma.user.delete({ where: { id: targetId } });
   res.json({ success: true, data: { message: 'User deleted successfully' } } satisfies ApiResponse);
 });
+
+// ── Save Expo push token for current user ─────────────────────────────────────
+export const savePushToken = asyncHandler(async (req: Request, res: Response) => {
+  const { pushToken } = z.object({ pushToken: z.string().min(1) }).parse(req.body);
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { pushToken },
+  });
+  res.json({ success: true, data: { message: 'Push token saved' } } satisfies ApiResponse);
+});

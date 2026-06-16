@@ -9,6 +9,9 @@ router.use(authenticate);
 router.get('/',      users.list);
 router.get('/:id',   users.getById);
 
+// Store Expo push token for current user
+router.post('/push-token', users.savePushToken);
+
 // Admin-only user management
 router.post('/',       requireRole('admin'), users.create);      // create user
 router.patch('/:id',   requireRole('admin'), users.update);      // full profile update + password reset

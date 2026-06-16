@@ -7,6 +7,7 @@ import { AlertStatus, AlertPriority } from '@prisma/client';
 import { broadcast } from '../websocket';
 import { publishEvent } from '../config/kafka';
 import { TOPICS } from '../messaging/kafkaConsumer';
+import { notifyOnCallUsers } from '../services/notificationService';
 
 const createSchema = z.object({
   title: z.string().min(1),
@@ -38,6 +39,8 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   const alert = await alertService.createAlert(req.user!.orgId, body);
   broadcast(req.user!.orgId, { event: 'alert.new', data: alert });
   await publishEvent(TOPICS.ALERTS, alert.id, { event: 'alert.created', orgId: req.user!.orgId, data: alert });
+  // Fire-and-forget push notification to on-call users
+  notifyOnCallUsers(req.user!.orgId, { id: alert.id, title: alert.title, priority: alert.priority, source: alert.source }).catch(() => {});
   res.status(201).json({ success: true, data: alert } satisfies ApiResponse);
 });
 
