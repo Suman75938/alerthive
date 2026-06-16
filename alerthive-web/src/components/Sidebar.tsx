@@ -32,16 +32,22 @@ import {
   ChevronDown,
   X,
 } from 'lucide-react';
-import { mockAlerts, mockProblems, mockChanges } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useTickets } from '../context/TicketContext';
 import { useTheme } from '../context/ThemeContext';
 import { Tooltip } from './Tooltip';
+import { apiGet } from '../lib/api';
 
 export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
-  const openAlertCount = mockAlerts.filter((a) => a.status === 'open').length;
-  const openProblemCount = mockProblems.filter((p) => p.status === 'detected' || p.status === 'investigating' || p.status === 'known_error').length;
-  const pendingChangeCount = mockChanges.filter((c) => c.status === 'pending_approval').length;
+  const [openAlertCount, setOpenAlertCount] = useState(0);
+  const [openProblemCount] = useState(0);
+  const [pendingChangeCount] = useState(0);
+
+  useEffect(() => {
+    apiGet<unknown[]>('/alerts', { status: 'open', pageSize: 1 })
+      .then((r) => setOpenAlertCount((r as unknown as { meta?: { total?: number } }).meta?.total ?? 0))
+      .catch(() => setOpenAlertCount(0));
+  }, []);
   const location = useLocation();
   const { user, isAdmin, isDeveloper, isEndUser, logout } = useAuth();
   const { tickets } = useTickets();
