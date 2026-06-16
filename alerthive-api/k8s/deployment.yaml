@@ -1,0 +1,380 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# AlertHive – AKS Kubernetes Deployment Manifests
+# 3 pods per service (API + Redis + PostgreSQL)
+# Resource sizing based on benchmark results
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Namespace ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alerthive
+  labels:
+    app: alerthive
+    environment: production
+
+---
+# ── ConfigMap: non-secret config ───────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alerthive-config
+  namespace: alerthive
+data:
+  NODE_ENV: "production"
+  PORT: "4000"
+  API_BASE_PATH: "/api/v1"
+  REDIS_URL: "redis://alerthive-redis:6379"
+  KAFKA_BROKERS: "alerthive-kafka:9092"
+  CORS_ORIGINS: "https://alerthive.yourcompany.com"
+  LOG_LEVEL: "warn"
+  RATE_LIMIT_WINDOW_MS: "60000"
+  RATE_LIMIT_MAX: "500"
+  JWT_ACCESS_EXPIRES_IN: "15m"
+  JWT_REFRESH_EXPIRES_IN: "7d"
+
+---
+# ── Secret: sensitive values (use Azure Key Vault in production) ───────────────
+# In production: replace with External Secrets Operator + Azure Key Vault
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alerthive-secrets
+  namespace: alerthive
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://alerthive:CHANGE_ME@alerthive-postgres:5432/alerthive_db?sslmode=require"
+  JWT_SECRET: "CHANGE_ME_32_CHAR_RANDOM_STRING"
+  JWT_REFRESH_SECRET: "CHANGE_ME_32_CHAR_RANDOM_STRING_2"
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# API DEPLOYMENT – 3 replicas
+# Resource sizing: 500m CPU / 512Mi memory per pod
+# Total claim: 1.5 vCPU + 1.5Gi RAM from node pool
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alerthive-api
+  namespace: alerthive
+  labels:
+    app: alerthive-api
+    version: "1.0.0"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: alerthive-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1   # keep 2/3 pods alive during rollout
+      maxSurge: 1         # spin up 1 extra pod during rollout
+  template:
+    metadata:
+      labels:
+        app: alerthive-api
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/api/v1/health"
+    spec:
+      # Spread pods across availability zones
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: alerthive-api
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values: [alerthive-api]
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: alerthive-api
+          image: alerthive.azurecr.io/alerthive-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: alerthive-config
+            - secretRef:
+                name: alerthive-secrets
+          resources:
+            requests:
+              cpu: "250m"      # guaranteed minimum
+              memory: "256Mi"
+            limits:
+              cpu: "500m"      # burst up to 0.5 vCPU per pod
+              memory: "512Mi"  # OOM protection
+          # ── Health probes ───────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 4000
+            failureThreshold: 30
+            periodSeconds: 3
+          # ── Security ────────────────────────────────────────────────────────
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30
+
+---
+# ── API Service (ClusterIP – exposed via Ingress) ──────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: alerthive-api-svc
+  namespace: alerthive
+  labels:
+    app: alerthive-api
+spec:
+  selector:
+    app: alerthive-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+  type: ClusterIP
+
+---
+# ── Ingress (NGINX) ────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alerthive-ingress
+  namespace: alerthive
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - api.alerthive.yourcompany.com
+      secretName: alerthive-tls
+  rules:
+    - host: api.alerthive.yourcompany.com
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: alerthive-api-svc
+                port:
+                  number: 80
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: alerthive-api-svc
+                port:
+                  number: 80
+
+---
+# ── HorizontalPodAutoscaler ────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: alerthive-api-hpa
+  namespace: alerthive
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: alerthive-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65   # scale out when avg CPU > 65%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5-min cooldown before scaling in
+
+---
+# ── PodDisruptionBudget ────────────────────────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: alerthive-api-pdb
+  namespace: alerthive
+spec:
+  selector:
+    matchLabels:
+      app: alerthive-api
+  minAvailable: 2   # always keep at least 2 pods running
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# REDIS – Single pod (demo); use Azure Cache for Redis in production
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alerthive-redis
+  namespace: alerthive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alerthive-redis
+  template:
+    metadata:
+      labels:
+        app: alerthive-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--save", "", "--appendonly", "no"]
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alerthive-redis
+  namespace: alerthive
+spec:
+  selector:
+    app: alerthive-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# POSTGRESQL – StatefulSet with persistent volume
+# (Use Azure Database for PostgreSQL Flexible Server in production)
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: alerthive-postgres
+  namespace: alerthive
+spec:
+  serviceName: alerthive-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alerthive-postgres
+  template:
+    metadata:
+      labels:
+        app: alerthive-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: alerthive
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: alerthive-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: alerthive_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: managed-premium
+        resources:
+          requests:
+            storage: 32Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alerthive-postgres
+  namespace: alerthive
+spec:
+  selector:
+    app: alerthive-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None  # headless for StatefulSet DNS

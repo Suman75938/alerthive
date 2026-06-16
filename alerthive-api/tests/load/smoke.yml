@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AlertHive – SMOKE TEST  (2 vUsers × 60 s)
+# Purpose : Verify the API responds correctly; catch obvious regressions.
+# Target  : p99 < 2000 ms, error rate < 5%
+# Run     : npm run perf:smoke
+# ─────────────────────────────────────────────────────────────────────────────
+config:
+  target: "http://localhost:4000"
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: "Smoke – low load"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  ensure:
+    maxErrorRate: 5
+    p99: 2000
+
+scenarios:
+  - name: "Health check"
+    flow:
+      - get:
+          url: "/api/v1/health"
+
+  - name: "Auth → list alerts → list incidents"
+    flow:
+      - post:
+          url: "/api/v1/auth/login"
+          json:
+            email: "bench@alerthive.io"
+            password: "Bench@123!"
+            orgSlug: "benchmark-org"
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+
+      - get:
+          url: "/api/v1/alerts"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+      - get:
+          url: "/api/v1/incidents"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+      - get:
+          url: "/api/v1/tickets"
+          headers:
+            Authorization: "Bearer {{ token }}"

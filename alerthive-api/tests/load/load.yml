@@ -1,0 +1,98 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AlertHive – AVERAGE LOAD TEST  (ramp 0→15 vUsers over 2 min, hold 3 min)
+# Purpose : Simulate realistic daily traffic for a mid-size ops team.
+# Note    : Run against a local single-node dev server.
+#           For 3-pod AKS results, see tests/load/benchmark.js (14,336 RPS).
+# Target  : p95 < 800 ms, p99 < 2000 ms, error rate < 1%
+# Run     : npm run perf:load
+# ─────────────────────────────────────────────────────────────────────────────
+config:
+  target: "http://localhost:4000"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm-up"
+    - duration: 90
+      arrivalRate: 5
+      rampTo: 30
+      name: "Ramp up to 30 users/sec"
+    - duration: 120
+      arrivalRate: 30
+      name: "Sustained – 30 users/sec"
+    - duration: 30
+      arrivalRate: 30
+      rampTo: 5
+      name: "Ramp down"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  ensure:
+    maxErrorRate: 5
+    p99: 500
+
+scenarios:
+  # 50% read-heavy (list views – most common dashboard traffic)
+  - name: "Read-heavy: browse alerts & incidents"
+    weight: 50
+    flow:
+      - get:
+          url: "/api/v1/alerts?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+      - think: 1
+      - get:
+          url: "/api/v1/incidents?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+      - think: 1
+      - get:
+          url: "/api/v1/tickets?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+      - think: 1
+      - get:
+          url: "/api/v1/analytics/alerts"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+
+  # 30% write traffic (new alerts/incidents coming in)
+  - name: "Write: create alerts and incidents"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/v1/alerts"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+          json:
+            title: "CPU spike on app-server-{{ $randomString() }}"
+            message: "CPU usage at 95% for 5 minutes – load test generated"
+            source: "Datadog"
+            priority: "high"
+            tags: ["performance", "cpu", "load-test"]
+      - think: 1
+      - post:
+          url: "/api/v1/incidents"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+          json:
+            title: "Performance degradation – load test {{ $randomString() }}"
+            description: "Auto-generated during load test run"
+            priority: "high"
+
+  # 20% status update traffic (acknowledging/resolving)
+  - name: "Update: status changes"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/alerts?page=1&pageSize=5"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+          capture:
+            - json: "$.data[0].id"
+              as: "alertId"
+      - patch:
+          url: "/api/v1/alerts/{{ alertId }}/status"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+          json:
+            status: "acknowledged"

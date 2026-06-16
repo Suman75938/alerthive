@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AlertHive – SPIKE TEST  (burst to 8 users/sec instantly)
+# Purpose : Simulate a major incident causing everyone to log in simultaneously.
+#           Tests auto-scaling trigger point and recovery behaviour.
+# Note    : Rates are calibrated for a local single-node dev server.
+#           For 3-pod AKS spike capacity, see tests/load/benchmark.js (14,336 RPS).
+# Target  : System should NOT crash; p99 < 8000 ms, error rate < 5%
+# Run     : npm run perf:spike
+# ─────────────────────────────────────────────────────────────────────────────
+config:
+  target: "http://localhost:4000"
+  phases:
+    - duration: 30
+      arrivalRate: 1
+      name: "Baseline"
+    - duration: 15
+      arrivalRate: 1
+      rampTo: 8
+      name: "Spike – burst to 8 users/sec"
+    - duration: 60
+      arrivalRate: 8
+      name: "Hold spike"
+    - duration: 30
+      arrivalRate: 8
+      rampTo: 1
+      name: "Recovery"
+    - duration: 30
+      arrivalRate: 1
+      name: "Post-spike baseline – confirm recovery"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  ensure:
+    maxErrorRate: 5
+    p99: 8000
+
+scenarios:
+  - name: "Spike: high-frequency reads"
+    weight: 70
+    flow:
+      - get:
+          url: "/api/v1/alerts?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+      - get:
+          url: "/api/v1/incidents?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+      - get:
+          url: "/api/v1/analytics/alerts"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+
+  - name: "Spike: concurrent incident creation"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/v1/incidents"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.ARTILLERY_TOKEN }}"
+          json:
+            title: "SPIKE TEST – Incident {{ $randomString() }}"
+            description: "Generated during spike test"
+            priority: "critical"
