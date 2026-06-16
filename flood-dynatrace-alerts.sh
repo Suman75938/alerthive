@@ -1,25 +1,36 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# AlertHive — Dynatrace Alert Flood Script
-# Injects synthetic problem events via Dynatrace Events API v2.
-# Each event triggers your Workflow → AlertHive automatically.
+# AlertHive — Alert Flood Script
+# Sends synthetic alerts directly to AlertHive webhook endpoint.
+# No Dynatrace required — simulates what DT Workflows would send.
 #
 # Usage:
 #   chmod +x flood-dynatrace-alerts.sh
-#   DT_ENV=ssp97551 DT_TOKEN=<your-api-token> ./flood-dynatrace-alerts.sh
+#   ALERTHIVE_URL=http://localhost:4000 ./flood-dynatrace-alerts.sh
 #
-# How to get DT_TOKEN:
-#   Dynatrace → Settings → Access tokens → Generate token
-#   Scopes needed: events.ingest
+# Or with ngrok:
+#   ALERTHIVE_URL=https://your-ngrok-url.ngrok-free.app ./flood-dynatrace-alerts.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
+ALERTHIVE_URL="${ALERTHIVE_URL:-http://localhost:4000}"
+WEBHOOK_SECRET="${ALERTHIVE_WEBHOOK_SECRET:-alerthive-dt-secret-2026}"
+ORG_SLUG="${ORG_SLUG:-fedex-ito}"
+WEBHOOK_ENDPOINT="${ALERTHIVE_URL}/api/v1/webhooks/dynatrace/${ORG_SLUG}"
+
+# Legacy Dynatrace Events API settings (kept for reference)
 DT_ENV="${DT_ENV:-ssp97551}"
 DT_TOKEN="${DT_TOKEN:-}"
-DT_BASE="https://${DT_ENV}.live.dynatrace.com/api/v2/events/ingest"
 
-if [[ -z "$DT_TOKEN" ]]; then
-  echo "ERROR: DT_TOKEN is not set. Export it before running:"
-  echo "  export DT_TOKEN=dt0c01.xxxxxxxxxxxx"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  AlertHive — Alert Flood (Direct Webhook)"
+echo "  Endpoint    : $WEBHOOK_ENDPOINT"
+echo "  Org         : $ORG_SLUG"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Check AlertHive is reachable
+if ! curl -sf "${ALERTHIVE_URL}/api/v1/health" > /dev/null 2>&1; then
+  echo "ERROR: Cannot reach AlertHive at $ALERTHIVE_URL"
+  echo "  Make sure the API server is running: npm run dev"
   exit 1
 fi
 
@@ -79,11 +90,8 @@ declare -a ENTITIES=(
 )
 
 TOTAL=${#TITLES[@]}
-DELAY=2  # seconds between events
+DELAY=1  # seconds between events
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  AlertHive — Dynatrace Alert Flood"
-echo "  Environment : $DT_ENV"
 echo "  Events      : $TOTAL"
 echo "  Interval    : ${DELAY}s"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -96,31 +104,33 @@ for ((i=0; i<TOTAL; i++)); do
 
   PAYLOAD=$(cat <<EOF
 {
-  "eventType": "CUSTOM_ALERT",
+  "id": "$EVENT_ID",
   "title": "$TITLE",
-  "entitySelector": "type(CUSTOM_DEVICE),entityName(\"$ENTITY\")",
-  "properties": {
-    "problemId": "$EVENT_ID",
-    "severityLevel": "$SEVERITY",
-    "entityName": "$ENTITY",
-    "status": "OPEN",
-    "source": "AlertHive-Flood-Script",
-    "description": "Synthetic problem event injected by AlertHive flood script for testing."
-  }
+  "severityLevel": "$SEVERITY",
+  "status": "OPEN",
+  "entityName": "$ENTITY",
+  "impactedEntity": "$ENTITY",
+  "description": "Synthetic flood alert $((i+1)) injected by AlertHive flood script for testing.",
+  "problemUrl": "https://${DT_ENV}.apps.dynatrace.com/ui/problems/$EVENT_ID",
+  "rootCauseEntity": "$ENTITY",
+  "affectedEntitiesCount": $((RANDOM % 5 + 1)),
+  "problemDuration": $((RANDOM % 60 + 5))
 }
 EOF
 )
 
-  HTTP_STATUS=$(curl -s -o /tmp/dt_flood_resp.json -w "%{http_code}" \
-    -X POST "$DT_BASE" \
-    -H "Authorization: Api-Token $DT_TOKEN" \
+  HTTP_STATUS=$(curl -s -o /tmp/ah_flood_resp.json -w "%{http_code}" \
+    -X POST "$WEBHOOK_ENDPOINT" \
     -H "Content-Type: application/json" \
+    -H "X-AlertHive-Secret: $WEBHOOK_SECRET" \
     -d "$PAYLOAD")
 
-  RESP=$(cat /tmp/dt_flood_resp.json 2>/dev/null)
+  RESP=$(cat /tmp/ah_flood_resp.json 2>/dev/null)
 
   if [[ "$HTTP_STATUS" == "201" || "$HTTP_STATUS" == "200" ]]; then
+    ALERT_ID=$(echo "$RESP" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
     echo "[$((i+1))/$TOTAL] ✅  $SEVERITY → $TITLE"
+    [[ -n "$ALERT_ID" ]] && echo "          alert_id: $ALERT_ID"
   else
     echo "[$((i+1))/$TOTAL] ⚠️  HTTP $HTTP_STATUS — $TITLE"
     echo "    Response: $RESP"
@@ -128,8 +138,12 @@ EOF
 
   sleep $DELAY
 done
+  fi
+
+  sleep $DELAY
+done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Done. Check AlertHive → Alerts for incoming events."
+echo "  Done. Check AlertHive → Alerts for all $TOTAL events."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
