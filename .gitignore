@@ -1,3 +1,6 @@
+# Unrelated subfolders
+vllm/
+
 # Dependencies
 node_modules/
 .pnp
