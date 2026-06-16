@@ -138,10 +138,6 @@ EOF
 
   sleep $DELAY
 done
-  fi
-
-  sleep $DELAY
-done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
