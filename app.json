@@ -3,6 +3,12 @@
     "name": "AlertHive",
     "slug": "alerthive",
     "version": "1.0.0",
+    "updates": {
+      "enabled": false
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
