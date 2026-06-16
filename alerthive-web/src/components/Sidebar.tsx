@@ -40,13 +40,21 @@ import { apiGet } from '../lib/api';
 
 export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const [openAlertCount, setOpenAlertCount] = useState(0);
-  const [openProblemCount] = useState(0);
+  const [openProblemCount, setOpenProblemCount] = useState(0);
   const [pendingChangeCount] = useState(0);
 
   useEffect(() => {
-    apiGet<unknown[]>('/alerts', { status: 'open', pageSize: 1 })
-      .then((r) => setOpenAlertCount((r as unknown as { meta?: { total?: number } }).meta?.total ?? 0))
-      .catch(() => setOpenAlertCount(0));
+    const fetchCounts = () => {
+      apiGet<unknown>('/alerts', { status: 'open', pageSize: 1 })
+        .then((r) => setOpenAlertCount((r as { meta?: { total?: number } }).meta?.total ?? 0))
+        .catch(() => setOpenAlertCount(0));
+      apiGet<unknown>('/problems', { status: 'OPEN', pageSize: 1 })
+        .then((r) => setOpenProblemCount((r as { meta?: { total?: number } }).meta?.total ?? 0))
+        .catch(() => setOpenProblemCount(0));
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
   }, []);
   const location = useLocation();
   const { user, isAdmin, isDeveloper, isEndUser, logout } = useAuth();
