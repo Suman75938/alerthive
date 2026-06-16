@@ -15,6 +15,8 @@ import { authenticate } from '../middleware/auth';
 import { ApiResponse } from '../types/api';
 import { logger } from '../utils/logger';
 import { broadcast } from '../websocket';
+import { publishEvent } from '../config/kafka';
+import { TOPICS } from '../messaging/kafkaConsumer';
 
 const router = Router();
 
@@ -265,6 +267,10 @@ router.post(
     });
 
     logger.info({ msg: '[DT Webhook] Alert created/deduped', alertId: alert.id, hitCount: (alert.metadata as Record<string, unknown>)?.duplicateCount });
+
+    // Broadcast new alert to connected websocket clients and publish to Kafka
+    broadcast(org.id, { event: 'alert.new', data: alert });
+    await publishEvent(TOPICS.ALERTS, alert.id, { event: 'alert.created', orgId: org.id, data: alert }).catch(() => {});
 
     // Auto-create / update ticket for this Dynatrace problem
     if (pid !== 'UNKNOWN') {
