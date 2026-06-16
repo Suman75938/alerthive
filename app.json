@@ -6,9 +6,6 @@
     "updates": {
       "enabled": false
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
