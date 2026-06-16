@@ -234,12 +234,34 @@ router.post(
     if (problemURL) messageParts.push(`Details: ${problemURL}`);
     const message = messageParts.join(' ');
 
+    // Enrich: pull extra fields from Workflow payload shape
+    const rootCauseEntity  = safeStr(body.rootCauseEntity ?? body.rootCauseEntityName ?? '', MAX_LEN.entity);
+    const affectedCount    = typeof body.affectedEntitiesCount === 'number' ? body.affectedEntitiesCount : undefined;
+    const problemDuration  = typeof body.problemDuration === 'number' ? body.problemDuration : undefined;
+    const managementZones  = Array.isArray(body.managementZones)
+      ? (body.managementZones as unknown[]).slice(0, 5).map((z) => safeStr((z as Record<string, unknown>)?.name ?? z, 80)).filter(Boolean)
+      : [];
+
     const alert = await alertService.createAlert(org.id, {
       title:    `[DT] ${problemTitle}`,
       message,
       source:   'Dynatrace',
       priority,
       tags:     ['dynatrace', severity.toLowerCase(), ...(problemImpact ? [problemImpact.toLowerCase()] : []), ...tags],
+      metadata: {
+        dynatrace: {
+          problemId:       pid,
+          severity,
+          impact:          problemImpact || null,
+          impactedEntity:  impacted,
+          rootCauseEntity: rootCauseEntity || null,
+          affectedCount:   affectedCount ?? null,
+          durationMinutes: problemDuration ? Math.round(problemDuration / 60000) : null,
+          managementZones: managementZones.length ? managementZones : null,
+          problemUrl:      problemURL || null,
+          rawState:        rawState,
+        },
+      },
     });
 
     logger.info({ msg: '[DT Webhook] Alert created/deduped', alertId: alert.id, hitCount: (alert.metadata as Record<string, unknown>)?.duplicateCount });

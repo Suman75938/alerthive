@@ -44,7 +44,7 @@ export async function getAlert(id: string, orgId: string) {
   return alert;
 }
 
-export async function createAlert(orgId: string, data: { title: string; message: string; source: string; priority: string; tags?: string[] }) {
+export async function createAlert(orgId: string, data: { title: string; message: string; source: string; priority: string; tags?: string[]; metadata?: Record<string, unknown> }) {
   // ── De-duplication fingerprint ──────────────────────────────────────────────
   // An alert is a duplicate if: same org, same source, same normalised title,
   // and it is still open/acknowledged (i.e. not yet closed/snoozed).
@@ -80,7 +80,7 @@ export async function createAlert(orgId: string, data: { title: string; message:
       priority: data.priority as AlertPriority,
       status: AlertStatus.open,
       tags: data.tags ?? [],
-      metadata: { fingerprint, duplicateCount: 1 },
+      metadata: { fingerprint, duplicateCount: 1, ...(data.metadata ?? {}) },
     },
   });
   await cacheDeletePattern(alertKeys.listPattern(orgId));
