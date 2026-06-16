@@ -1,7 +1,7 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Zap, ChevronDown, ChevronUp, Phone, Mail, Bell, MessageSquare, Users, Clock, RotateCcw, X, Plus } from 'lucide-react';
-import { mockEscalationPolicies as initialPolicies } from '../data/mockData';
 import { EscalationPolicy, NotifyViaChannel, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const channelIcon: Record<NotifyViaChannel, { icon: React.ElementType; label: string; color: string }> = {
@@ -246,7 +246,11 @@ function NewPolicyModal({ onClose, onSave }: { onClose: () => void; onSave: (p: 
 }
 
 export default function EscalationPolicies() {
-  const [policies, setPolicies] = useState<EscalationPolicy[]>(initialPolicies);
+  const [policies, setPolicies] = useState<EscalationPolicy[]>([]);
+
+  useEffect(() => {
+    apiGet<EscalationPolicy[]>('/escalation').then((r) => setPolicies(r.data ?? []));
+  }, []);
   const [showModal, setShowModal] = useState(false);
   return (
     <div className="p-4 max-w-7xl mx-auto">

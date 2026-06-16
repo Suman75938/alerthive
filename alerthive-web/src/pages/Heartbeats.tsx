@@ -1,17 +1,18 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Radio, AlertTriangle, CheckCircle, PauseCircle, Clock, Tag, Bell, Plus, X } from 'lucide-react';
-import { mockHeartbeats as initialHeartbeats } from '../data/mockData';
 import { Heartbeat, HeartbeatStatus } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const statusConfig: Record<HeartbeatStatus, { label: string; color: string; icon: React.ElementType; dot: string }> = {
-  active: { label: 'Active', color: '#2ED573', icon: CheckCircle, dot: 'bg-low animate-pulse' },
+  active:  { label: 'Active',  color: '#2ED573', icon: CheckCircle,   dot: 'bg-low animate-pulse' },
   expired: { label: 'Expired', color: '#FF4757', icon: AlertTriangle, dot: 'bg-critical' },
-  paused: { label: 'Paused', color: '#B0A8C8', icon: PauseCircle, dot: 'bg-text-muted' },
+  paused:  { label: 'Paused',  color: '#B0A8C8', icon: PauseCircle,  dot: 'bg-text-muted' },
 };
+const DEFAULT_STATUS_CFG = statusConfig.paused;
 
 function timeAgo(isoDate?: string): string {
-  if (!isoDate) return 'â€”';
+  if (!isoDate) return '—';
   const diff = Date.now() - new Date(isoDate).getTime();
   const secs = Math.floor(diff / 1000);
   if (secs < 60) return `${secs}s ago`;
@@ -22,7 +23,7 @@ function timeAgo(isoDate?: string): string {
 }
 
 function timeUntil(isoDate?: string): string {
-  if (!isoDate) return 'â€”';
+  if (!isoDate) return '—';
   const diff = new Date(isoDate).getTime() - Date.now();
   if (diff <= 0) return 'Expired';
   const secs = Math.floor(diff / 1000);
@@ -34,13 +35,12 @@ function timeUntil(isoDate?: string): string {
 }
 
 function HeartbeatCard({ hb }: { hb: Heartbeat }) {
-  const cfg = statusConfig[hb.status];
+  const cfg = statusConfig[hb.status] ?? DEFAULT_STATUS_CFG;
   const Icon = cfg.icon;
 
   return (
     <div
-      className="bg-surface border rounded-xl p-3 flex flex-col gap-3"
-      style={{ borderColor: hb.status === 'expired' ? '#FF475730' : '#2A2A3E' }}
+      className="bg-surface border border-border rounded-xl p-3 flex flex-col gap-3 h-full"
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-2">
@@ -78,7 +78,7 @@ function HeartbeatCard({ hb }: { hb: Heartbeat }) {
             className="text-sm font-bold mt-0.5"
             style={{ color: hb.status === 'expired' ? '#FF4757' : hb.status === 'paused' ? '#B0A8C8' : '#2ED573' }}
           >
-            {hb.status === 'paused' ? 'â€”' : timeUntil(hb.expiresAt)}
+            {hb.status === 'paused' ? '—' : timeUntil(hb.expiresAt)}
           </p>
         </div>
       </div>
@@ -206,7 +206,11 @@ function NewMonitorModal({ onClose, onSave }: { onClose: () => void; onSave: (hb
 }
 
 export default function Heartbeats() {
-  const [monitors, setMonitors] = useState<Heartbeat[]>(initialHeartbeats);
+  const [monitors, setMonitors] = useState<Heartbeat[]>([]);
+
+  useEffect(() => {
+    apiGet<Heartbeat[]>('/heartbeats').then((r) => setMonitors(r.data ?? []));
+  }, []);
   const [filter, setFilter] = useState<HeartbeatStatus | 'all'>('all');
   const [showModal, setShowModal] = useState(false);
 
@@ -228,7 +232,7 @@ export default function Heartbeats() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Heartbeat Monitoring</h1>
           <p className="text-sm text-text-muted mt-1">
-            Detect silent failures â€” services that stop reporting without raising an explicit alert.
+            Detect silent failures — services that stop reporting without raising an explicit alert.
           </p>
         </div>
         <Tooltip text="Create a new heartbeat monitor" side="bottom">
@@ -260,7 +264,7 @@ export default function Heartbeats() {
           <p className="text-sm text-text-primary font-medium">How Heartbeats Work</p>
           <p className="text-xs text-text-muted mt-1">
             Your service calls the heartbeat endpoint on a fixed schedule. If AlertHive doesn't receive a ping
-            within the configured interval, it fires an alert at the configured priority â€” detecting silent failures
+            within the configured interval, it fires an alert at the configured priority — detecting silent failures
             such as crashed cron jobs, hung batch processes, or disconnected agents.
           </p>
         </div>
@@ -290,7 +294,7 @@ export default function Heartbeats() {
           <p>No heartbeat monitors match this filter.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 [grid-auto-rows:1fr]">
           {filtered.map((hb) => (
             <HeartbeatCard key={hb.id} hb={hb} />
           ))}

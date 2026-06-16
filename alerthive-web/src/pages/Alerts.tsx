@@ -1,9 +1,9 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, ArrowUpDown, CheckCircle, Bell, Flame, AlertTriangle, Clock } from 'lucide-react';
+import { Search, SlidersHorizontal, ArrowUpDown, CheckCircle, Bell, Flame, Clock } from 'lucide-react';
 import { AlertCard } from '../components/AlertCard';
-import { mockAlerts } from '../data/mockData';
-import { AlertStatus } from '../types';
+import { apiGet } from '../lib/api';
+import { Alert, AlertStatus } from '../types';
 import { Tooltip } from '../components/Tooltip';
 
 const statusFilters: { key: AlertStatus | 'all'; label: string }[] = [
@@ -18,10 +18,20 @@ const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 
 export function Alerts() {
   const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<AlertStatus | 'all'>('all');
 
-  const filtered = mockAlerts
+  useEffect(() => {
+    setLoading(true);
+    apiGet<Alert[]>('/alerts', { pageSize: 100 })
+      .then((r) => setAlerts(r.data ?? []))
+      .catch(() => setAlerts([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = alerts
     .filter((a) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
@@ -34,10 +44,10 @@ export function Alerts() {
     })
     .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
-  const openCount = mockAlerts.filter((a) => a.status === 'open').length;
-  const criticalCount = mockAlerts.filter((a) => a.priority === 'critical' && a.status !== 'closed').length;
-  const ackCount = mockAlerts.filter((a) => a.status === 'acknowledged').length;
-  const snoozedCount = mockAlerts.filter((a) => a.status === 'snoozed').length;
+  const openCount = alerts.filter((a) => a.status === 'open').length;
+  const criticalCount = alerts.filter((a) => a.priority === 'critical' && a.status !== 'closed').length;
+  const ackCount = alerts.filter((a) => a.status === 'acknowledged').length;
+  const snoozedCount = alerts.filter((a) => a.status === 'snoozed').length;
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
@@ -71,7 +81,7 @@ export function Alerts() {
               <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-2xl font-bold text-text-primary">{value}</p>
+              <p className="text-2xl font-bold text-text-primary">{loading ? '-' : value}</p>
               <p className="text-xs text-text-muted">{label}</p>
             </div>
           </div>
@@ -89,9 +99,7 @@ export function Alerts() {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         {searchQuery && (
-          <button onClick={() => setSearchQuery('')} className="text-text-muted hover:text-text-primary text-sm">
-            âœ•
-          </button>
+          <button onClick={() => setSearchQuery('')} className="text-text-muted hover:text-text-primary text-sm leading-none">&#x2715;</button>
         )}
       </div>
 
@@ -113,29 +121,33 @@ export function Alerts() {
         ))}
       </div>
 
-      {/* Count */}
-      <p className="text-sm text-text-muted mb-4">
-        {filtered.length} alert{filtered.length !== 1 ? 's' : ''}
-      </p>
-
-      {/* List â€” 2-column grid on large screens */}
-      {filtered.length === 0 ? (
+      {loading ? (
         <div className="text-center py-16 text-text-muted">
-          <CheckCircle size={48} className="mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No alerts found</p>
-          <p className="text-sm mt-1">
-            {searchQuery ? 'Try a different search term' : 'All clear! No matching alerts.'}
-          </p>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm">Loading alerts...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          {filtered.map((alert) => (
-            <AlertCard key={alert.id} alert={alert} onPress={() => navigate(`/alerts/${alert.id}`)} />
-          ))}
-        </div>
+        <>
+          <p className="text-sm text-text-muted mb-4">
+            {filtered.length} alert{filtered.length !== 1 ? 's' : ''}
+          </p>
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-text-muted">
+              <CheckCircle size={48} className="mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No alerts found</p>
+              <p className="text-sm mt-1">
+                {searchQuery ? 'Try a different search term' : 'All clear! No matching alerts.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+              {filtered.map((alert) => (
+                <AlertCard key={alert.id} alert={alert} onPress={() => navigate(`/alerts/${alert.id}`)} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
-
-

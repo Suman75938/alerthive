@@ -1,20 +1,20 @@
 ﻿import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bug, AlertTriangle, BookOpen, Link2, CheckCircle2, Circle, Clock } from 'lucide-react';
-import { useState } from 'react';
-import { mockProblems, mockIncidents } from '../data/mockData';
-import { ProblemStatus, AlertPriority } from '../types';
+import { useState, useEffect } from 'react';
+import { Problem, ProblemStatus, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 
 const STATUS_CONFIG: Record<ProblemStatus, { label: string; color: string; bg: string }> = {
-  detected:     { label: 'Detected',     color: 'text-yellow-400',  bg: 'bg-yellow-400/10' },
-  investigating:{ label: 'Investigating',color: 'text-orange-400',  bg: 'bg-orange-400/10' },
-  known_error:  { label: 'Known Error',  color: 'text-red-400',     bg: 'bg-red-400/10' },
-  resolved:     { label: 'Resolved',     color: 'text-green-400',   bg: 'bg-green-400/10' },
-  closed:       { label: 'Closed',       color: 'text-gray-400',    bg: 'bg-gray-400/10' },
+  detected:     { label: 'Detected',     color: 'text-medium',     bg: 'bg-medium/10' },
+  investigating:{ label: 'Investigating',color: 'text-high',       bg: 'bg-high/10' },
+  known_error:  { label: 'Known Error',  color: 'text-critical',   bg: 'bg-critical/10' },
+  resolved:     { label: 'Resolved',     color: 'text-low',        bg: 'bg-low/10' },
+  closed:       { label: 'Closed',       color: 'text-text-muted', bg: 'bg-surface-light' },
 };
 
 const PRIORITY_DOT: Record<AlertPriority, string> = {
-  critical: 'bg-red-400', high: 'bg-orange-400', medium: 'bg-yellow-400',
-  low: 'bg-blue-400', info: 'bg-gray-400',
+  critical: 'bg-critical', high: 'bg-high', medium: 'bg-medium',
+  low: 'bg-low', info: 'bg-info',
 };
 
 const TABS = ['overview', '5 whys', 'known error', 'linked incidents'] as const;
@@ -24,25 +24,34 @@ export default function ProblemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const problem = mockProblems.find((p) => p.id === id);
+  useEffect(() => {
+    if (!id) return;
+    apiGet<Problem>(`/problems/${id}`)
+      .then((r) => setProblem(r.data ?? null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="p-6 text-center text-text-muted">Loading…</div>;
   if (!problem) {
     return (
       <div className="p-6 text-center text-text-muted">
         <Bug size={40} className="mx-auto mb-3 opacity-30" />
         <p>Problem not found.</p>
         <button onClick={() => navigate('/problems')} className="mt-3 text-primary text-sm hover:underline">
-          â† Back to Problems
+          ← Back to Problems
         </button>
       </div>
     );
   }
 
-  const status = STATUS_CONFIG[problem.status];
-  const linkedIncidents = mockIncidents.filter((i) => problem.linkedIncidentIds.includes(i.id));
+  const status = STATUS_CONFIG[problem.status as ProblemStatus] ?? STATUS_CONFIG.detected;
+  const linkedIncidentIds: string[] = problem.linkedIncidentIds ?? [];
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Back */}
       <button
         onClick={() => navigate('/problems')}
@@ -59,7 +68,7 @@ export default function ProblemDetail() {
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <span className="text-xs font-mono text-text-muted">{problem.id}</span>
               {problem.knownError && (
-                <span className="px-2 py-0.5 bg-red-900/30 text-red-400 text-xs rounded font-medium">Known Error</span>
+                <span className="px-2 py-0.5 bg-critical/20 text-critical text-xs rounded font-medium">Known Error</span>
               )}
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
                 {status.label}
@@ -112,7 +121,7 @@ export default function ProblemDetail() {
             </div>
             {problem.rootCause && (
               <div className="bg-surface border border-border rounded-xl p-3">
-                <h3 className="text-sm font-semibold text-orange-400 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-high mb-2 uppercase tracking-wide flex items-center gap-2">
                   <AlertTriangle size={15} /> Root Cause
                 </h3>
                 <p className="text-text-primary text-sm leading-relaxed">{problem.rootCause}</p>
@@ -120,7 +129,7 @@ export default function ProblemDetail() {
             )}
             {problem.workaround && (
               <div className="bg-surface border border-border rounded-xl p-3">
-                <h3 className="text-sm font-semibold text-blue-400 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-info mb-2 uppercase tracking-wide flex items-center gap-2">
                   <BookOpen size={15} /> Workaround
                 </h3>
                 <p className="text-text-primary text-sm leading-relaxed">{problem.workaround}</p>
@@ -174,10 +183,10 @@ export default function ProblemDetail() {
               </div>
             ) : (
               <>
-                <div className="bg-red-900/10 border border-red-900/40 rounded-xl p-3">
+                <div className="bg-critical/10 border border-critical/30 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-3">
-                    <BookOpen size={16} className="text-red-400" />
-                    <h3 className="text-red-400 font-semibold text-sm uppercase tracking-wide">Known Error Database (KEDB) Entry</h3>
+                    <BookOpen size={16} className="text-critical" />
+                    <h3 className="text-critical font-semibold text-sm uppercase tracking-wide">Known Error Database (KEDB) Entry</h3>
                   </div>
                   <p className="text-text-primary text-sm leading-relaxed">
                     {problem.knownErrorDescription ?? 'No description provided.'}
@@ -185,7 +194,7 @@ export default function ProblemDetail() {
                 </div>
                 {problem.workaround && (
                   <div className="bg-surface border border-border rounded-xl p-3">
-                    <h3 className="text-sm font-semibold text-blue-400 mb-2 uppercase tracking-wide">Approved Workaround</h3>
+                    <h3 className="text-sm font-semibold text-info mb-2 uppercase tracking-wide">Approved Workaround</h3>
                     <p className="text-text-primary text-sm leading-relaxed">{problem.workaround}</p>
                   </div>
                 )}
@@ -196,33 +205,23 @@ export default function ProblemDetail() {
 
         {tab === 'linked incidents' && (
           <div className="space-y-3">
-            {linkedIncidents.length === 0 && (
+            {linkedIncidentIds.length === 0 && (
               <div className="text-center py-10 text-text-muted">
                 <Link2 size={30} className="mx-auto mb-2 opacity-30" />
                 <p>No incidents linked yet.</p>
               </div>
             )}
-            {linkedIncidents.map((inc) => (
+            {linkedIncidentIds.map((incId) => (
               <div
-                key={inc.id}
-                onClick={() => navigate(`/incidents/${inc.id}`)}
+                key={incId}
+                onClick={() => navigate(`/incidents/${incId}`)}
                 className="bg-surface border border-border rounded-xl p-4 hover:border-primary/50 cursor-pointer transition-colors flex items-center gap-3"
               >
-                {inc.status === 'resolved' || inc.status === 'monitoring' ? (
-                  <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-                ) : (
-                  <Circle size={16} className="text-orange-400 shrink-0" />
-                )}
+                <Link2 size={16} className="text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-text-muted">{inc.id}</span>
-                    <span className="text-xs text-text-secondary capitalize">{inc.status}</span>
-                  </div>
-                  <p className="text-text-primary text-sm font-medium truncate">{inc.title}</p>
+                  <span className="text-xs font-mono text-text-muted">{incId}</span>
+                  <p className="text-text-primary text-sm font-medium">View incident →</p>
                 </div>
-                <span className={`text-xs font-medium capitalize ${PRIORITY_DOT[inc.priority].replace('bg-', 'text-')}`}>
-                  {inc.priority}
-                </span>
               </div>
             ))}
           </div>

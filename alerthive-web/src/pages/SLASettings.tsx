@@ -51,7 +51,7 @@ function SLARow({ policy, isAdmin, onUpdate }: {
           <Tooltip text={policy.enabled ? 'Disable this SLA policy' : 'Enable this SLA policy'} side="top">
           <button
             onClick={() => onUpdate(policy.id, { enabled: !policy.enabled })}
-            className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${policy.enabled ? 'bg-accent' : 'bg-[#3D2060]'}`}
+            className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${policy.enabled ? 'bg-accent' : 'bg-surface-light'}`}
           >
             <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${policy.enabled ? 'translate-x-4' : ''}`} />
           </button>
@@ -117,7 +117,7 @@ export default function SLASettings() {
   const { isAdmin } = useAuth();
 
   return (
-    <div className="p-3 max-w-7xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">SLA Policies</h1>
         <p className="text-sm text-text-secondary mt-1">

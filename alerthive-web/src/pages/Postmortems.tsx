@@ -1,34 +1,39 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, ChevronRight, AlertTriangle } from 'lucide-react';
-import { mockPostmortems } from '../data/mockData';
-import { AlertPriority } from '../types';
+import { Postmortem, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const SEVERITY_CONFIG: Record<AlertPriority, { color: string; bg: string }> = {
-  critical: { color: 'text-red-400',    bg: 'bg-red-400/10' },
-  high:     { color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  medium:   { color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  low:      { color: 'text-blue-400',   bg: 'bg-blue-400/10' },
-  info:     { color: 'text-gray-400',   bg: 'bg-gray-400/10' },
+  critical: { color: 'text-critical',   bg: 'bg-critical/10' },
+  high:     { color: 'text-high',       bg: 'bg-high/10' },
+  medium:   { color: 'text-medium',     bg: 'bg-medium/10' },
+  low:      { color: 'text-low',        bg: 'bg-low/10' },
+  info:     { color: 'text-info',       bg: 'bg-info/10' },
 };
 
 export default function Postmortems() {
   const navigate = useNavigate();
+  const [postmortems, setPostmortems] = useState<Postmortem[]>([]);
   const [search, setSearch] = useState('');
 
-  const filtered = mockPostmortems.filter(
+  useEffect(() => {
+    apiGet<Postmortem[]>('/postmortems', { pageSize: 200 }).then((r) => setPostmortems(r.data ?? []));
+  }, []);
+
+  const filtered = postmortems.filter(
     (p) =>
-      p.incidentTitle.toLowerCase().includes(search.toLowerCase()) ||
-      p.summary.toLowerCase().includes(search.toLowerCase())
+      (p.incidentTitle ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.summary ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const openActions = mockPostmortems.reduce(
-    (sum, p) => sum + p.actionItems.filter((a) => a.status === 'open').length, 0
+  const openActions = postmortems.reduce(
+    (sum, p) => sum + (p.actionItems ?? []).filter((a) => a.status === 'open').length, 0
   );
 
   return (
-    <div className="p-3 max-w-7xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
@@ -48,12 +53,12 @@ export default function Postmortems() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {[
-          { label: 'Total', value: mockPostmortems.length },
-          { label: 'Published', value: mockPostmortems.filter((p) => p.status === 'published').length },
+          { label: 'Total', value: postmortems.length },
+          { label: 'Published', value: postmortems.filter((p) => p.status === 'published').length },
           { label: 'Open Actions', value: openActions, highlight: openActions > 0 },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-surface rounded-xl p-4 border border-border">
-            <p className={`text-xl font-bold ${kpi.highlight ? 'text-orange-400' : 'text-text-primary'}`}>{kpi.value}</p>
+            <p className={`text-xl font-bold ${kpi.highlight ? 'text-high' : 'text-text-primary'}`}>{kpi.value}</p>
             <p className="text-xs text-text-muted">{kpi.label}</p>
           </div>
         ))}
@@ -77,7 +82,7 @@ export default function Postmortems() {
         )}
         {filtered.map((pm) => {
           const sev = SEVERITY_CONFIG[pm.severity];
-          const openAct = pm.actionItems.filter((a) => a.status === 'open').length;
+          const openAct = (pm.actionItems ?? []).filter((a) => a.status === 'open').length;
           return (
             <div
               key={pm.id}
@@ -88,7 +93,7 @@ export default function Postmortems() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-mono text-text-muted">{pm.id}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pm.status === 'published' ? 'bg-green-400/10 text-green-400' : pm.status === 'review' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-gray-400/10 text-gray-400'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pm.status === 'published' ? 'bg-low/10 text-low' : pm.status === 'review' ? 'bg-medium/10 text-medium' : 'bg-surface-light text-text-muted'}`}>
                     {pm.status}
                   </span>
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${sev.bg} ${sev.color}`}>
@@ -103,7 +108,7 @@ export default function Postmortems() {
                   <span>Duration: {pm.durationMinutes}m</span>
                   <span>Author: {pm.author}</span>
                   {openAct > 0 && (
-                    <span className="text-orange-400 flex items-center gap-1">
+                    <span className="text-high flex items-center gap-1">
                       <AlertTriangle size={11} /> {openAct} open action{openAct !== 1 ? 's' : ''}
                     </span>
                   )}

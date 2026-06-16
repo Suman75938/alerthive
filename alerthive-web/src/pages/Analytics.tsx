@@ -131,7 +131,7 @@ export default function Analytics() {
   }
 
   return (
-    <div className="p-3 max-w-7xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -236,6 +236,7 @@ export default function Analytics() {
             <Clock className="w-4 h-4 text-text-secondary" /> SLA Summary by Priority
           </h2>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -276,6 +277,7 @@ export default function Analytics() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Email Report Modal */}

@@ -49,6 +49,11 @@
   --color-text-muted: #7A6A90;
 }
 
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
 * {
   box-sizing: border-box;
 }

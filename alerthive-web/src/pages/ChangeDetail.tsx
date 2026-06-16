@@ -1,26 +1,26 @@
 ﻿import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, GitBranch, CheckCircle2, XCircle, Clock, ServerCrash, Shield } from 'lucide-react';
-import { useState } from 'react';
-import { mockChanges } from '../data/mockData';
-import { ChangeStatus, ChangeType, ChangeRisk, ChangeApproval } from '../types';
+import { useState, useEffect } from 'react';
+import { Change, ChangeStatus, ChangeType, ChangeRisk, ChangeApproval } from '../types';
+import { apiGet } from '../lib/api';
 
 const STATUS_CONFIG: Record<ChangeStatus, { label: string; color: string; bg: string }> = {
-  draft:            { label: 'Draft',            color: 'text-gray-400',   bg: 'bg-gray-400/10' },
-  pending_approval: { label: 'Pending Approval', color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  approved:         { label: 'Approved',         color: 'text-blue-400',   bg: 'bg-blue-400/10' },
-  in_progress:      { label: 'In Progress',      color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  completed:        { label: 'Completed',        color: 'text-green-400',  bg: 'bg-green-400/10' },
-  cancelled:        { label: 'Cancelled',        color: 'text-gray-500',   bg: 'bg-gray-500/10' },
-  rejected:         { label: 'Rejected',         color: 'text-red-400',    bg: 'bg-red-400/10' },
+  draft:            { label: 'Draft',            color: 'text-text-muted',  bg: 'bg-surface-light' },
+  pending_approval: { label: 'Pending Approval', color: 'text-medium',      bg: 'bg-medium/10' },
+  approved:         { label: 'Approved',         color: 'text-info',        bg: 'bg-info/10' },
+  in_progress:      { label: 'In Progress',      color: 'text-high',        bg: 'bg-high/10' },
+  completed:        { label: 'Completed',        color: 'text-low',         bg: 'bg-low/10' },
+  cancelled:        { label: 'Cancelled',        color: 'text-text-muted',  bg: 'bg-surface-light' },
+  rejected:         { label: 'Rejected',         color: 'text-critical',    bg: 'bg-critical/10' },
 };
 
 const TYPE_ICON: Record<ChangeType, string> = { standard: '\uD83D\uDFE2', normal: '\uD83D\uDFE1', emergency: '\uD83D\uDD34' };
 
 const RISK_CONFIG: Record<ChangeRisk, { label: string; color: string; bar: string }> = {
-  low:      { label: 'Low',      color: 'text-green-400',  bar: 'bg-green-400'  },
-  medium:   { label: 'Medium',   color: 'text-yellow-400', bar: 'bg-yellow-400' },
-  high:     { label: 'High',     color: 'text-orange-400', bar: 'bg-orange-400' },
-  critical: { label: 'Critical', color: 'text-red-400',    bar: 'bg-red-400'    },
+  low:      { label: 'Low',      color: 'text-low',      bar: 'bg-low'      },
+  medium:   { label: 'Medium',   color: 'text-medium',   bar: 'bg-medium'   },
+  high:     { label: 'High',     color: 'text-high',     bar: 'bg-high'     },
+  critical: { label: 'Critical', color: 'text-critical', bar: 'bg-critical' },
 };
 
 const TABS = ['overview', 'approvals', 'implementation', 'risk'] as const;
@@ -28,17 +28,17 @@ type Tab = typeof TABS[number];
 
 function ApprovalBadge({ approval }: { approval: ChangeApproval }) {
   if (approval.status === 'approved') return (
-    <span className="flex items-center gap-1 text-green-400 text-xs">
+    <span className="flex items-center gap-1 text-low text-xs">
       <CheckCircle2 size={13} /> Approved
     </span>
   );
   if (approval.status === 'rejected') return (
-    <span className="flex items-center gap-1 text-red-400 text-xs">
+    <span className="flex items-center gap-1 text-critical text-xs">
       <XCircle size={13} /> Rejected
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-yellow-400 text-xs">
+    <span className="flex items-center gap-1 text-medium text-xs">
       <Clock size={13} /> Pending
     </span>
   );
@@ -48,8 +48,17 @@ export default function ChangeDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
+  const [change, setChange] = useState<Change | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const change = mockChanges.find((c) => c.id === id);
+  useEffect(() => {
+    if (!id) return;
+    apiGet<Change>(`/changes/${id}`)
+      .then((r) => setChange(r.data ?? null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="p-6 text-center text-text-muted">Loading…</div>;
   if (!change) {
     return (
       <div className="p-6 text-center text-text-muted">
@@ -64,11 +73,12 @@ export default function ChangeDetail() {
 
   const status = STATUS_CONFIG[change.status];
   const risk = RISK_CONFIG[change.risk];
-  const approvedCount = change.approvals.filter((a) => a.status === 'approved').length;
-  const totalApprovals = change.approvals.length;
+  const approvals = (change.approvals ?? []) as ChangeApproval[];
+  const approvedCount = approvals.filter((a) => a.status === 'approved').length;
+  const totalApprovals = approvals.length;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       <button
         onClick={() => navigate('/changes')}
         className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -95,7 +105,7 @@ export default function ChangeDetail() {
             </div>
             {/* Affected Services */}
             <div className="flex gap-1.5 mt-3 flex-wrap">
-              {change.affectedServices.map((s) => (
+              {(change.affectedServices ?? []).map((s) => (
                 <span key={s} className="px-2 py-0.5 bg-surface-light text-text-muted text-xs rounded flex items-center gap-1">
                   <ServerCrash size={10} /> {s}
                 </span>
@@ -118,7 +128,7 @@ export default function ChangeDetail() {
           >
             {t}
             {t === 'approvals' && (
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${approvedCount === totalApprovals && totalApprovals > 0 ? 'bg-green-400/20 text-green-400' : 'bg-yellow-400/20 text-yellow-400'}`}>
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${approvedCount === totalApprovals && totalApprovals > 0 ? 'bg-low/20 text-low' : 'bg-medium/20 text-medium'}`}>
                 {approvedCount}/{totalApprovals}
               </span>
             )}
@@ -134,16 +144,16 @@ export default function ChangeDetail() {
               <h3 className="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wide">Description</h3>
               <p className="text-text-primary text-sm leading-relaxed">{change.description}</p>
             </div>
-            {(change.linkedIncidentIds.length > 0 || change.linkedProblemIds.length > 0) && (
+            {((change.linkedIncidentIds ?? []).length > 0 || (change.linkedProblemIds ?? []).length > 0) && (
               <div className="bg-surface border border-border rounded-xl p-3">
                 <h3 className="text-xs font-semibold text-text-secondary mb-3 uppercase tracking-wide">Linked Records</h3>
                 <div className="flex flex-wrap gap-2">
-                  {change.linkedIncidentIds.map((id) => (
-                    <span key={id} className="px-2 py-1 bg-orange-400/10 text-orange-400 text-xs rounded cursor-pointer hover:bg-orange-400/20"
+                  {(change.linkedIncidentIds ?? []).map((id) => (
+                    <span key={id} className="px-2 py-1 bg-high/10 text-high text-xs rounded cursor-pointer hover:bg-high/20"
                       onClick={() => navigate(`/incidents/${id}`)}>INC: {id}</span>
                   ))}
-                  {change.linkedProblemIds.map((id) => (
-                    <span key={id} className="px-2 py-1 bg-purple-400/10 text-purple-400 text-xs rounded cursor-pointer hover:bg-purple-400/20"
+                  {(change.linkedProblemIds ?? []).map((id) => (
+                    <span key={id} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded cursor-pointer hover:bg-primary/20"
                       onClick={() => navigate(`/problems/${id}`)}>PRB: {id}</span>
                   ))}
                 </div>
@@ -154,13 +164,13 @@ export default function ChangeDetail() {
 
         {tab === 'approvals' && (
           <div className="space-y-3">
-            {change.approvals.length === 0 && (
+            {approvals.length === 0 && (
               <div className="text-center py-10 text-text-muted">
                 <Shield size={30} className="mx-auto mb-2 opacity-30" />
                 <p>No approval workflow configured.</p>
               </div>
             )}
-            {change.approvals.map((approval) => (
+            {approvals.map((approval) => (
               <div key={approval.id} className="bg-surface border border-border rounded-xl p-4 flex items-start gap-2">
                 <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                   {approval.approver.charAt(0).toUpperCase()}
@@ -185,11 +195,11 @@ export default function ChangeDetail() {
         {tab === 'implementation' && (
           <div className="space-y-4">
             <div className="bg-surface border border-border rounded-xl p-3">
-              <h3 className="text-xs font-semibold text-blue-400 mb-2 uppercase tracking-wide">Implementation Plan</h3>
+              <h3 className="text-xs font-semibold text-info mb-2 uppercase tracking-wide">Implementation Plan</h3>
               <pre className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap font-sans">{change.implementationPlan}</pre>
             </div>
             <div className="bg-surface border border-border rounded-xl p-3">
-              <h3 className="text-xs font-semibold text-orange-400 mb-2 uppercase tracking-wide">Backout / Rollback Plan</h3>
+              <h3 className="text-xs font-semibold text-high mb-2 uppercase tracking-wide">Backout / Rollback Plan</h3>
               <pre className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap font-sans">{change.backoutPlan}</pre>
             </div>
           </div>

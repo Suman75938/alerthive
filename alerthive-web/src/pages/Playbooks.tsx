@@ -1,7 +1,7 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, CheckSquare, Square, Clock, User, Tag, AlertTriangle, Plus } from 'lucide-react';
-import { mockPlaybooks } from '../data/mockData';
 import { Playbook, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const priorityColors: Record<AlertPriority, string> = {
@@ -170,6 +170,12 @@ function PlaybookCard({ playbook }: { playbook: Playbook }) {
 }
 
 export default function Playbooks() {
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+
+  useEffect(() => {
+    apiGet<Playbook[]>('/playbooks').then((r) => setPlaybooks(r.data ?? []));
+  }, []);
+
   return (
     <div className="p-4 max-w-7xl mx-auto">
       {/* Header */}
@@ -191,9 +197,9 @@ export default function Playbooks() {
       {/* KPI Strip */}
       <div className="grid grid-cols-3 gap-4 mb-3">
         {[
-          { label: 'Playbooks', value: mockPlaybooks.length, color: '#FF6200' },
-          { label: 'Total Steps', value: mockPlaybooks.reduce((s, p) => s + p.steps.length, 0), color: '#FFA502' },
-          { label: 'Checklist Items', value: mockPlaybooks.reduce((s, p) => s + p.steps.reduce((ss, step) => ss + step.checklistItems.length, 0), 0), color: '#2ED573' },
+          { label: 'Playbooks', value: playbooks.length, color: '#FF6200' },
+          { label: 'Total Steps', value: playbooks.reduce((s, p) => s + (p.steps?.length ?? 0), 0), color: '#FFA502' },
+          { label: 'Checklist Items', value: playbooks.reduce((s, p) => s + (p.steps ?? []).reduce((ss: number, step: Playbook['steps'][0]) => ss + (step.checklistItems?.length ?? 0), 0), 0), color: '#2ED573' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-surface border border-border rounded-xl p-4 text-center">
             <p className="text-2xl font-bold" style={{ color }}>{value}</p>
@@ -204,7 +210,7 @@ export default function Playbooks() {
 
       {/* Playbooks */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-        {mockPlaybooks.map((pb) => (
+        {playbooks.map((pb) => (
           <PlaybookCard key={pb.id} playbook={pb} />
         ))}
       </div>

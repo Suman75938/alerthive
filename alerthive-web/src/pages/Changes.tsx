@@ -1,57 +1,62 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GitBranch, ChevronRight, Search, Filter, AlertTriangle, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { mockChanges } from '../data/mockData';
-import { Change, ChangeStatus, ChangeType, ChangeRisk } from '../types';
+import { Change, ChangeStatus, ChangeType, ChangeRisk, ChangeApproval } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const STATUS_CONFIG: Record<ChangeStatus, { label: string; color: string; bg: string }> = {
-  draft:            { label: 'Draft',            color: 'text-gray-400',   bg: 'bg-gray-400/10' },
-  pending_approval: { label: 'Pending Approval', color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
-  approved:         { label: 'Approved',         color: 'text-blue-400',   bg: 'bg-blue-400/10' },
-  in_progress:      { label: 'In Progress',      color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  completed:        { label: 'Completed',        color: 'text-green-400',  bg: 'bg-green-400/10' },
-  cancelled:        { label: 'Cancelled',        color: 'text-gray-500',   bg: 'bg-gray-500/10' },
-  rejected:         { label: 'Rejected',         color: 'text-red-400',    bg: 'bg-red-400/10' },
+  draft:            { label: 'Draft',            color: 'text-text-muted',  bg: 'bg-surface-light' },
+  pending_approval: { label: 'Pending Approval', color: 'text-medium',      bg: 'bg-medium/10' },
+  approved:         { label: 'Approved',         color: 'text-info',        bg: 'bg-info/10' },
+  in_progress:      { label: 'In Progress',      color: 'text-high',        bg: 'bg-high/10' },
+  completed:        { label: 'Completed',        color: 'text-low',         bg: 'bg-low/10' },
+  cancelled:        { label: 'Cancelled',        color: 'text-text-muted',  bg: 'bg-surface-light' },
+  rejected:         { label: 'Rejected',         color: 'text-critical',    bg: 'bg-critical/10' },
 };
 
 const TYPE_CONFIG: Record<ChangeType, { label: string; color: string; icon: string }> = {
-  standard:  { label: 'Standard',  color: 'text-green-400',  icon: '\uD83D\uDFE2' },
-  normal:    { label: 'Normal',    color: 'text-yellow-400', icon: '\uD83D\uDFE1' },
-  emergency: { label: 'Emergency', color: 'text-red-400',    icon: '\uD83D\uDD34' },
+  standard:  { label: 'Standard',  color: 'text-low',      icon: '\uD83D\uDFE2' },
+  normal:    { label: 'Normal',    color: 'text-medium',   icon: '\uD83D\uDFE1' },
+  emergency: { label: 'Emergency', color: 'text-critical', icon: '\uD83D\uDD34' },
 };
 
 const RISK_CONFIG: Record<ChangeRisk, { label: string; color: string; bar: string; bg: string }> = {
-  low:      { label: 'Low',      color: 'text-green-400',  bar: 'bg-green-400',  bg: 'bg-green-400/10' },
-  medium:   { label: 'Medium',   color: 'text-yellow-400', bar: 'bg-yellow-400', bg: 'bg-yellow-400/10' },
-  high:     { label: 'High',     color: 'text-orange-400', bar: 'bg-orange-400', bg: 'bg-orange-400/10' },
-  critical: { label: 'Critical', color: 'text-red-400',    bar: 'bg-red-400',    bg: 'bg-red-400/10' },
+  low:      { label: 'Low',      color: 'text-low',      bar: 'bg-low',      bg: 'bg-low/10' },
+  medium:   { label: 'Medium',   color: 'text-medium',   bar: 'bg-medium',   bg: 'bg-medium/10' },
+  high:     { label: 'High',     color: 'text-high',     bar: 'bg-high',     bg: 'bg-high/10' },
+  critical: { label: 'Critical', color: 'text-critical', bar: 'bg-critical', bg: 'bg-critical/10' },
 };
 
 export default function Changes() {
   const navigate = useNavigate();
+  const [changes, setChanges] = useState<Change[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ChangeStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<ChangeType | 'all'>('all');
 
-  const filtered: Change[] = mockChanges.filter((c) => {
+  useEffect(() => {
+    apiGet<Change[]>('/changes', { pageSize: 200 }).then((r) => setChanges(r.data ?? []));
+  }, []);
+
+  const filtered: Change[] = changes.filter((c) => {
     const matchSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.description.toLowerCase().includes(search.toLowerCase()) ||
-      c.affectedServices.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+      (c.affectedServices ?? []).some((s) => s.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchType = typeFilter === 'all' || c.type === typeFilter;
     return matchSearch && matchStatus && matchType;
   });
 
   const totals = {
-    pending: mockChanges.filter((c) => c.status === 'pending_approval').length,
-    emergency: mockChanges.filter((c) => c.type === 'emergency').length,
-    inProgress: mockChanges.filter((c) => c.status === 'in_progress').length,
-    completed: mockChanges.filter((c) => c.status === 'completed').length,
+    pending: changes.filter((c) => c.status === 'pending_approval').length,
+    emergency: changes.filter((c) => c.type === 'emergency').length,
+    inProgress: changes.filter((c) => c.status === 'in_progress').length,
+    completed: changes.filter((c) => c.status === 'completed').length,
   };
 
   return (
-    <div className="p-3 max-w-7xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -75,10 +80,10 @@ export default function Changes() {
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { label: 'Pending Approval', value: totals.pending, icon: Clock, color: 'text-yellow-400' },
-          { label: 'Emergency', value: totals.emergency, icon: AlertTriangle, color: 'text-red-400' },
-          { label: 'In Progress', value: totals.inProgress, icon: ShieldAlert, color: 'text-orange-400' },
-          { label: 'Completed', value: totals.completed, icon: CheckCircle2, color: 'text-green-400' },
+          { label: 'Pending Approval', value: totals.pending, icon: Clock, color: 'text-medium' },
+          { label: 'Emergency', value: totals.emergency, icon: AlertTriangle, color: 'text-critical' },
+          { label: 'In Progress', value: totals.inProgress, icon: ShieldAlert, color: 'text-high' },
+          { label: 'Completed', value: totals.completed, icon: CheckCircle2, color: 'text-low' },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-surface rounded-xl p-4 border border-border flex items-center gap-3">
             <kpi.icon size={20} className={kpi.color} />
@@ -130,7 +135,8 @@ export default function Changes() {
           const status = STATUS_CONFIG[change.status];
           const type = TYPE_CONFIG[change.type];
           const risk = RISK_CONFIG[change.risk];
-          const approvedCount = change.approvals.filter((a) => a.status === 'approved').length;
+          const approvals = (change.approvals ?? []) as ChangeApproval[];
+          const approvedCount = approvals.filter((a) => a.status === 'approved').length;
           return (
             <div
               key={change.id}
@@ -166,9 +172,9 @@ export default function Changes() {
                   <div className="flex items-center gap-4 mt-2 text-xs text-text-muted flex-wrap">
                     <span>By: {change.raisedBy}</span>
                     <span>Scheduled: {new Date(change.scheduledStart).toLocaleDateString()}</span>
-                    <span>Approvals: {approvedCount}/{change.approvals.length}</span>
+                    <span>Approvals: {approvedCount}/{approvals.length}</span>
                     <div className="flex gap-1 flex-wrap ml-auto">
-                      {change.affectedServices.slice(0, 3).map((s) => (
+                      {(change.affectedServices ?? []).slice(0, 3).map((s) => (
                         <span key={s} className="px-1.5 py-0.5 bg-surface-light rounded">{s}</span>
                       ))}
                       {change.affectedServices.length > 3 && (

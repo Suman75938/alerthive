@@ -1,7 +1,7 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Route, ToggleLeft, ToggleRight, Tag, Server, AlertTriangle, Filter, ChevronDown, ChevronUp } from 'lucide-react';
-import { mockRoutingRules } from '../data/mockData';
 import { AlertRoutingRule, AlertPriority, RoutingConditionField } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const priorityColors: Record<AlertPriority, { color: string; bg: string }> = {
@@ -12,21 +12,26 @@ const priorityColors: Record<AlertPriority, { color: string; bg: string }> = {
   info: { color: '#1E90FF', bg: 'rgba(30,144,255,0.15)' },
 };
 
-const fieldIcon: Record<RoutingConditionField, React.ElementType> = {
+const fieldIcon: Record<string, React.ElementType> = {
   priority: AlertTriangle,
   source: Server,
   tag: Tag,
+  tags: Tag,
   message: Filter,
   team: Filter,
 };
 
-const fieldColors: Record<RoutingConditionField, string> = {
+const fieldColors: Record<string, string> = {
   priority: '#FF6200',
   source: '#1E90FF',
   tag: '#FFA502',
+  tags: '#FFA502',
   message: '#2ED573',
   team: '#B0A8C8',
 };
+
+const DEFAULT_FIELD_ICON: React.ElementType = Filter;
+const DEFAULT_FIELD_COLOR = '#B0A8C8';
 
 function RuleCard({ rule, index }: { rule: AlertRoutingRule; index: number }) {
   const [enabled, setEnabled] = useState(rule.enabled);
@@ -82,9 +87,10 @@ function RuleCard({ rule, index }: { rule: AlertRoutingRule; index: number }) {
 
       {/* Conditions preview (always visible) */}
       <div className="px-4 pb-3 flex flex-wrap gap-2">
-        {rule.conditions.map((cond, i) => {
-          const Icon = fieldIcon[cond.field];
-          const color = fieldColors[cond.field];
+        {(rule.conditions ?? []).map((cond, i) => {
+          const Icon = fieldIcon[cond.field] ?? DEFAULT_FIELD_ICON;
+          const color = fieldColors[cond.field] ?? DEFAULT_FIELD_COLOR;
+          const displayValue = Array.isArray(cond.value) ? cond.value.join(', ') : cond.value;
           return (
             <span
               key={i}
@@ -92,7 +98,7 @@ function RuleCard({ rule, index }: { rule: AlertRoutingRule; index: number }) {
               style={{ backgroundColor: `${color}18`, color }}
             >
               <Icon size={11} />
-              {cond.field} {cond.operator.replace('_', ' ')} "{cond.value}"
+              {cond.field} {cond.operator.replace('_', ' ')} "{displayValue}"
             </span>
           );
         })}
@@ -128,7 +134,11 @@ function RuleCard({ rule, index }: { rule: AlertRoutingRule; index: number }) {
 }
 
 export default function AlertRouting() {
-  const [rules] = useState(mockRoutingRules);
+  const [rules, setRules] = useState<AlertRoutingRule[]>([]);
+
+  useEffect(() => {
+    apiGet<AlertRoutingRule[]>('/routing').then((r) => setRules(r.data ?? []));
+  }, []);
 
   const enabled = rules.filter((r) => r.enabled).length;
 

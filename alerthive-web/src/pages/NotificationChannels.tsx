@@ -1,22 +1,21 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Bell, Mail, MessageSquare, Phone, ToggleLeft, ToggleRight, Plus, Slack, Globe } from 'lucide-react';
-import { mockNotificationChannels } from '../data/mockData';
 import { NotificationChannel, NotificationChannelType } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
-const channelConfig: Record<
-  NotificationChannelType,
-  { label: string; icon: React.ElementType; color: string; bgColor: string }
-> = {
-  slack: { label: 'Slack', icon: MessageSquare, color: '#E8D5FF', bgColor: '#4A154B' },
-  teams: { label: 'Microsoft Teams', icon: Globe, color: '#C7D3FF', bgColor: '#464EB8' },
-  email: { label: 'Email', icon: Mail, color: '#C3E8FF', bgColor: '#1E90FF' },
-  sms: { label: 'SMS', icon: MessageSquare, color: '#C6FFD9', bgColor: '#2ED573' },
-  push: { label: 'Push Notification', icon: Bell, color: '#FFE5C3', bgColor: '#FFA502' },
-  phone: { label: 'Phone Call', icon: Phone, color: '#FFCDD3', bgColor: '#FF4757' },
-  webhook: { label: 'Webhook', icon: Globe, color: '#D3D3D3', bgColor: '#666680' },
-
+const channelConfig: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
+  slack:    { label: 'Slack',              icon: MessageSquare, color: '#E8D5FF', bgColor: '#4A154B' },
+  teams:    { label: 'Microsoft Teams',    icon: Globe,         color: '#C7D3FF', bgColor: '#464EB8' },
+  email:    { label: 'Email',              icon: Mail,          color: '#C3E8FF', bgColor: '#1E90FF' },
+  sms:      { label: 'SMS',               icon: MessageSquare, color: '#C6FFD9', bgColor: '#2ED573' },
+  push:     { label: 'Push Notification', icon: Bell,          color: '#FFE5C3', bgColor: '#FFA502' },
+  phone:    { label: 'Phone Call',        icon: Phone,         color: '#FFCDD3', bgColor: '#FF4757' },
+  webhook:  { label: 'Webhook',           icon: Globe,         color: '#D3D3D3', bgColor: '#666680' },
+  pagerduty:{ label: 'PagerDuty',         icon: Bell,          color: '#FFE5E5', bgColor: '#25C151' },
 };
+
+const DEFAULT_CHANNEL_CFG = channelConfig.webhook;
 
 function maskSecret(value: string): string {
   if (!value || value === '***masked***') return 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢';
@@ -27,12 +26,13 @@ function maskSecret(value: string): string {
   return `${value.substring(0, 4)}${'â€¢'.repeat(Math.min(value.length - 4, 12))}`;
 }
 
-function ConfigRow({ label, value, secret = false }: { label: string; value: string; secret?: boolean }) {
+function ConfigRow({ label, value, secret = false }: { label: string; value: unknown; secret?: boolean }) {
+  const display = Array.isArray(value) ? (value as unknown[]).join(', ') : String(value ?? '');
   return (
     <div className="flex items-center justify-between py-1">
       <span className="text-xs text-text-muted">{label}</span>
       <span className="text-xs text-text-secondary font-mono">
-        {secret ? maskSecret(value) : value}
+        {secret ? maskSecret(display) : display}
       </span>
     </div>
   );
@@ -40,10 +40,10 @@ function ConfigRow({ label, value, secret = false }: { label: string; value: str
 
 function ChannelCard({ channel }: { channel: NotificationChannel }) {
   const [enabled, setEnabled] = useState(channel.enabled);
-  const cfg = channelConfig[channel.type];
+  const cfg = channelConfig[channel.type] ?? DEFAULT_CHANNEL_CFG;
   const Icon = cfg.icon;
 
-  const configEntries = Object.entries(channel.config);
+  const configEntries = Object.entries(channel.config as Record<string, unknown>);
 
   return (
     <div className={`bg-surface border rounded-xl overflow-hidden transition-all ${enabled ? 'border-border' : 'border-border/40 opacity-60'}`}>
@@ -105,12 +105,17 @@ function ChannelCard({ channel }: { channel: NotificationChannel }) {
 }
 
 export default function NotificationChannels() {
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [filterType, setFilterType] = useState<NotificationChannelType | 'all'>('all');
 
-  const types = [...new Set(mockNotificationChannels.map((c) => c.type))];
-  const filtered = filterType === 'all' ? mockNotificationChannels : mockNotificationChannels.filter((c) => c.type === filterType);
+  useEffect(() => {
+    apiGet<NotificationChannel[]>('/channels').then((r) => setChannels(r.data ?? []));
+  }, []);
 
-  const enabled = mockNotificationChannels.filter((c) => c.enabled).length;
+  const types = [...new Set(channels.map((c) => c.type))];
+  const filtered = filterType === 'all' ? channels : channels.filter((c) => c.type === filterType);
+
+  const enabled = channels.filter((c) => c.enabled).length;
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
@@ -133,9 +138,9 @@ export default function NotificationChannels() {
       {/* KPI Strip */}
       <div className="grid grid-cols-3 gap-4 mb-3">
         {[
-          { label: 'Total Channels', value: mockNotificationChannels.length, color: '#FF6200' },
+          { label: 'Total Channels', value: channels.length, color: '#FF6200' },
           { label: 'Active', value: enabled, color: '#2ED573' },
-          { label: 'Disabled', value: mockNotificationChannels.length - enabled, color: '#B0A8C8' },
+          { label: 'Disabled', value: channels.length - enabled, color: '#B0A8C8' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-surface border border-border rounded-xl p-4 text-center">
             <p className="text-2xl font-bold" style={{ color }}>{value}</p>
@@ -150,11 +155,11 @@ export default function NotificationChannels() {
           onClick={() => setFilterType('all')}
           className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${filterType === 'all' ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text-primary'}`}
         >
-          All ({mockNotificationChannels.length})
+          All ({channels.length})
         </button>
         {types.map((t) => {
-          const cfg = channelConfig[t];
-          const count = mockNotificationChannels.filter((c) => c.type === t).length;
+          const cfg = channelConfig[t] ?? DEFAULT_CHANNEL_CFG;
+          const count = channels.filter((c) => c.type === t).length;
           return (
             <button
               key={t}

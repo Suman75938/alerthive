@@ -703,7 +703,7 @@ function DynatracePanel({ dt }: { dt: DynatraceIntegration }) {
 
 export default function Integrations() {
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
@@ -721,11 +721,11 @@ export default function Integrations() {
       </div>
 
       {/* Demo Mode Banner */}
-      <div className="flex items-start gap-3 bg-[#0E1624] border border-info/30 rounded-xl px-4 py-3 mb-3 text-sm">
+      <div className="flex items-start gap-3 bg-surface-light border border-info/30 rounded-xl px-4 py-3 mb-3 text-sm">
         <FlaskConical size={16} className="text-info mt-0.5 shrink-0" />
         <div>
           <span className="font-semibold text-info">Partial Live Mode</span>
-          <span className="text-[#94A3B8] ml-2">
+          <span className="text-text-secondary ml-2">
             The Dynatrace and UiPath panels show real data from the database. Other integration cards show simulated data — in production each card connects to a live API endpoint.
           </span>
         </div>

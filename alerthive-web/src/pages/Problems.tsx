@@ -1,50 +1,55 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bug, ChevronRight, Search, Filter, AlertTriangle, BookOpen, CheckCircle2, Clock } from 'lucide-react';
-import { mockProblems } from '../data/mockData';
 import { Problem, ProblemStatus, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const STATUS_CONFIG: Record<ProblemStatus, { label: string; color: string; bg: string }> = {
-  detected:     { label: 'Detected',     color: 'text-yellow-400',  bg: 'bg-yellow-400/10' },
-  investigating:{ label: 'Investigating',color: 'text-orange-400',  bg: 'bg-orange-400/10' },
-  known_error:  { label: 'Known Error',  color: 'text-red-400',     bg: 'bg-red-400/10' },
-  resolved:     { label: 'Resolved',     color: 'text-green-400',   bg: 'bg-green-400/10' },
-  closed:       { label: 'Closed',       color: 'text-gray-400',    bg: 'bg-gray-400/10' },
+  detected:     { label: 'Detected',     color: 'text-medium',     bg: 'bg-medium/10' },
+  investigating:{ label: 'Investigating',color: 'text-high',       bg: 'bg-high/10' },
+  known_error:  { label: 'Known Error',  color: 'text-critical',   bg: 'bg-critical/10' },
+  resolved:     { label: 'Resolved',     color: 'text-low',        bg: 'bg-low/10' },
+  closed:       { label: 'Closed',       color: 'text-text-muted', bg: 'bg-surface-light' },
 };
 
 const PRIORITY_CONFIG: Record<AlertPriority, { color: string; dot: string }> = {
-  critical: { color: 'text-red-400',    dot: 'bg-red-400' },
-  high:     { color: 'text-orange-400', dot: 'bg-orange-400' },
-  medium:   { color: 'text-yellow-400', dot: 'bg-yellow-400' },
-  low:      { color: 'text-blue-400',   dot: 'bg-blue-400' },
-  info:     { color: 'text-gray-400',   dot: 'bg-gray-400' },
+  critical: { color: 'text-critical',   dot: 'bg-critical' },
+  high:     { color: 'text-high',       dot: 'bg-high' },
+  medium:   { color: 'text-medium',     dot: 'bg-medium' },
+  low:      { color: 'text-low',        dot: 'bg-low' },
+  info:     { color: 'text-info',       dot: 'bg-info' },
 };
 
 export default function Problems() {
   const navigate = useNavigate();
+  const [problems, setProblems] = useState<Problem[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProblemStatus | 'all'>('all');
 
-  const filtered: Problem[] = mockProblems.filter((p) => {
+  useEffect(() => {
+    apiGet<Problem[]>('/problems', { pageSize: 200 }).then((r) => setProblems(r.data ?? []));
+  }, []);
+
+  const filtered: Problem[] = problems.filter((p) => {
     const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.description.toLowerCase().includes(search.toLowerCase()) ||
-      p.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+      (p.tags ?? []).some((t) => t.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const counts = {
-    all: mockProblems.length,
-    detected: mockProblems.filter((p) => p.status === 'detected').length,
-    investigating: mockProblems.filter((p) => p.status === 'investigating').length,
-    known_error: mockProblems.filter((p) => p.status === 'known_error').length,
-    resolved: mockProblems.filter((p) => p.status === 'resolved').length,
-    closed: mockProblems.filter((p) => p.status === 'closed').length,
+    all: problems.length,
+    detected: problems.filter((p) => p.status === 'detected').length,
+    investigating: problems.filter((p) => p.status === 'investigating').length,
+    known_error: problems.filter((p) => p.status === 'known_error').length,
+    resolved: problems.filter((p) => p.status === 'resolved').length,
+    closed: problems.filter((p) => p.status === 'closed').length,
   };
 
   return (
-    <div className="p-3 max-w-7xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -68,10 +73,10 @@ export default function Problems() {
       {/* KPI Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { label: 'Open', value: counts.detected + counts.investigating, icon: AlertTriangle, color: 'text-orange-400' },
-          { label: 'Known Errors', value: counts.known_error, icon: BookOpen, color: 'text-red-400' },
-          { label: 'Resolved', value: counts.resolved, icon: CheckCircle2, color: 'text-green-400' },
-          { label: 'Avg Days Open', value: '4.2', icon: Clock, color: 'text-blue-400' },
+          { label: 'Open', value: counts.detected + counts.investigating, icon: AlertTriangle, color: 'text-high' },
+          { label: 'Known Errors', value: counts.known_error, icon: BookOpen, color: 'text-critical' },
+          { label: 'Resolved', value: counts.resolved, icon: CheckCircle2, color: 'text-low' },
+          { label: 'Avg Days Open', value: '4.2', icon: Clock, color: 'text-info' },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-surface rounded-xl p-4 border border-border flex items-center gap-3">
             <kpi.icon size={20} className={kpi.color} />
@@ -134,7 +139,7 @@ export default function Problems() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-mono text-text-muted">{problem.id}</span>
                     {problem.knownError && (
-                      <span className="px-1.5 py-0.5 bg-red-900/30 text-red-400 text-xs rounded font-medium">Known Error</span>
+                      <span className="px-1.5 py-0.5 bg-critical/20 text-critical text-xs rounded font-medium">Known Error</span>
                     )}
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
                       {status.label}

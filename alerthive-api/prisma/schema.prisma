@@ -82,13 +82,24 @@ model Organization {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       User[]
-  teams       Team[]
-  alerts      Alert[]
-  incidents   Incident[]
-  tickets     Ticket[]
-  slaPolicies SlaPolicy[]
-  apiKeys     ApiKey[]
+  users              User[]
+  teams              Team[]
+  alerts             Alert[]
+  incidents          Incident[]
+  tickets            Ticket[]
+  slaPolicies        SlaPolicy[]
+  apiKeys            ApiKey[]
+  problems           Problem[]
+  changes            Change[]
+  kbArticles         KBArticle[]
+  postmortems        Postmortem[]
+  heartbeats         Heartbeat[]
+  routingRules       AlertRoutingRule[]
+  escalationPolicies EscalationPolicy[]
+  maintenanceWindows MaintenanceWindow[]
+  notificationChannels NotificationChannel[]
+  playbooks          Playbook[]
+  serviceCatalog     ServiceCatalogItem[]
 
   @@map("organizations")
 }
@@ -393,4 +404,299 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PROBLEM MANAGEMENT
+// ─────────────────────────────────────────────────────────────────
+
+model Problem {
+  id                   String    @id @default(uuid())
+  orgId                String
+  title                String
+  description          String    @db.Text
+  status               String    @default("detected")
+  priority             AlertPriority
+  linkedIncidentIds    String[]
+  rootCause            String?   @db.Text
+  workaround           String?   @db.Text
+  knownError           Boolean   @default(false)
+  knownErrorDescription String?  @db.Text
+  fiveWhys             Json      @default("[]")
+  assigneeId           String?
+  tags                 String[]
+  resolvedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("problems")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CHANGE MANAGEMENT
+// ─────────────────────────────────────────────────────────────────
+
+model Change {
+  id                 String    @id @default(uuid())
+  orgId              String
+  title              String
+  description        String    @db.Text
+  status             String    @default("draft")
+  type               String    @default("standard")
+  risk               String    @default("medium")
+  riskScore          Int       @default(50)
+  raisedById         String
+  assigneeId         String?
+  approvals          Json      @default("[]")
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  implementationPlan String    @db.Text
+  backoutPlan        String    @db.Text
+  affectedServices   String[]
+  linkedIncidentIds  String[]
+  linkedProblemIds   String[]
+  tags               String[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("changes")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// KNOWLEDGE BASE
+// ─────────────────────────────────────────────────────────────────
+
+model KBArticle {
+  id               String   @id @default(uuid())
+  orgId            String
+  title            String
+  summary          String   @db.Text
+  content          String   @db.Text
+  category         String   @default("how-to")
+  status           String   @default("draft")
+  author           String
+  tags             String[]
+  views            Int      @default(0)
+  helpful          Int      @default(0)
+  notHelpful       Int      @default(0)
+  linkedIncidentIds String[]
+  linkedProblemIds  String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("kb_articles")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// POSTMORTEMS
+// ─────────────────────────────────────────────────────────────────
+
+model Postmortem {
+  id                  String   @id @default(uuid())
+  orgId               String
+  incidentId          String
+  incidentTitle       String
+  summary             String   @db.Text
+  detectedAt          DateTime
+  resolvedAt          DateTime
+  durationMinutes     Int
+  severity            AlertPriority
+  impactSummary       String   @db.Text
+  contributingFactors String[]
+  rootCause           String   @db.Text
+  fiveWhys            Json     @default("[]")
+  whatWentWell        String[]
+  whatWentWrong       String[]
+  actionItems         Json     @default("[]")
+  author              String
+  attendees           String[]
+  status              String   @default("draft")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("postmortems")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// HEARTBEAT MONITORING
+// ─────────────────────────────────────────────────────────────────
+
+model Heartbeat {
+  id            String    @id @default(uuid())
+  orgId         String
+  name          String
+  description   String    @db.Text
+  interval      Int
+  unit          String    @default("minutes")
+  status        String    @default("active")
+  lastPingAt    DateTime?
+  expiresAt     DateTime?
+  team          String
+  tags          String[]
+  alertOnExpiry Boolean   @default(true)
+  alertPriority AlertPriority @default(medium)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("heartbeats")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ALERT ROUTING RULES
+// ─────────────────────────────────────────────────────────────────
+
+model AlertRoutingRule {
+  id               String   @id @default(uuid())
+  orgId            String
+  name             String
+  description      String   @db.Text
+  conditions       Json     @default("[]")
+  conditionLogic   String   @default("all")
+  targetTeam       String
+  priorityOverride AlertPriority?
+  escalationPolicyId String?
+  enabled          Boolean  @default(true)
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, enabled])
+  @@map("alert_routing_rules")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ESCALATION POLICIES
+// ─────────────────────────────────────────────────────────────────
+
+model EscalationPolicy {
+  id                  String   @id @default(uuid())
+  orgId               String
+  name                String
+  description         String   @db.Text
+  steps               Json     @default("[]")
+  repeatCount         Int      @default(0)
+  repeatDelayMinutes  Int      @default(30)
+  teamId              String
+  teamName            String
+  linkedPriorities    String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("escalation_policies")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MAINTENANCE WINDOWS
+// ─────────────────────────────────────────────────────────────────
+
+model MaintenanceWindow {
+  id               String   @id @default(uuid())
+  orgId            String
+  title            String
+  description      String   @db.Text
+  startTime        DateTime
+  endTime          DateTime
+  affectedServices String[]
+  affectedTeams    String[]
+  status           String   @default("scheduled")
+  suppressAlerts   Boolean  @default(true)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@map("maintenance_windows")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// NOTIFICATION CHANNELS
+// ─────────────────────────────────────────────────────────────────
+
+model NotificationChannel {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  type      String
+  config    Json     @default("{}")
+  enabled   Boolean  @default(true)
+  userId    String?
+  teamId    String?
+  isGlobal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, enabled])
+  @@map("notification_channels")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PLAYBOOKS
+// ─────────────────────────────────────────────────────────────────
+
+model Playbook {
+  id                String   @id @default(uuid())
+  orgId             String
+  title             String
+  description       String   @db.Text
+  triggerConditions String[]
+  linkedPriorities  String[]
+  steps             Json     @default("[]")
+  tags              String[]
+  version           String   @default("1.0")
+  author            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("playbooks")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SERVICE CATALOG
+// ─────────────────────────────────────────────────────────────────
+
+model ServiceCatalogItem {
+  id               String   @id @default(uuid())
+  orgId            String
+  title            String
+  description      String   @db.Text
+  category         String   @default("other")
+  icon             String   @default("wrench")
+  slaHours         Int      @default(24)
+  approvalRequired Boolean  @default(false)
+  popularity       Int      @default(0)
+  tags             String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, category])
+  @@map("service_catalog_items")
 }

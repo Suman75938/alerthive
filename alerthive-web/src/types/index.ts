@@ -1,5 +1,40 @@
 export type AlertPriority = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
+// ─── Sprint Planning ──────────────────────────────────────────────────────────
+export interface SprintMember {
+  userId: string;
+  name: string;
+  team: string;
+  /** Total working hours per day (default 8) */
+  hoursPerDay: number;
+  /** Days off / PTO within this sprint (count of days) */
+  daysOff: number;
+  /** Story-points-per-day capacity after leave deduction */
+  spCapacityPerDay: number;
+}
+
+export interface BurndownPoint {
+  /** Day label e.g. "Mar 1" */
+  day: string;
+  ideal: number;
+  actual: number | null; // null = future
+}
+
+export interface SprintConfig {
+  id: string;
+  name: string;
+  team: string;
+  startDate: string;   // ISO date string
+  endDate: string;     // ISO date string
+  velocityTarget: number; // total SP committed
+  members: SprintMember[];
+  burndown: BurndownPoint[];
+  /** Filled after sprint ends */
+  completedSP?: number;
+  committedSP?: number;
+  status: 'planning' | 'active' | 'completed';
+}
+
 export type AlertStatus = 'open' | 'acknowledged' | 'closed' | 'snoozed';
 
 export type IncidentStatus = 'triggered' | 'investigating' | 'identified' | 'monitoring' | 'resolved';
@@ -36,6 +71,8 @@ export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'on_
 
 export type IssueCategory = 'system_issue' | 'application_issue' | 'others';
 
+export type TicketType = 'bug' | 'feature' | 'task' | 'incident' | 'improvement';
+
 export interface Ticket {
   id: string;
   title: string;
@@ -43,6 +80,10 @@ export interface Ticket {
   priority: AlertPriority;
   status: TicketStatus;
   issueCategory: IssueCategory;
+  type?: TicketType;
+  team?: string;
+  iteration?: string;
+  storyPoints?: number;
   rootCause?: string;
   resolution?: string;
   raisedBy: string; // user id
@@ -91,18 +132,20 @@ export interface Incident {
   dynatraceId?: string;
   createdAt: string;
   updatedAt: string;
-  assignee: string;
+  assignee: { id: string; name: string; email: string } | null;
+  assigneeId?: string | null;
   responders: string[];
-  alertCount: number;
+  alertCount?: number;
+  alerts?: { alertId: string; alert?: unknown }[];
   timeline: TimelineEvent[];
 }
 
 export interface TimelineEvent {
   id: string;
-  type: 'created' | 'acknowledged' | 'escalated' | 'comment' | 'status_change' | 'assigned' | 'resolved';
+  type: 'created' | 'updated' | 'acknowledged' | 'escalated' | 'comment' | 'status_change' | 'assigned' | 'resolved' | 'note';
   message: string;
-  user: string;
-  timestamp: string;
+  user: { id: string; name: string } | null;
+  createdAt: string;
 }
 
 export interface OnCallSchedule {
@@ -175,9 +218,9 @@ export type ChangeType = 'standard' | 'normal' | 'emergency';
 export type ChangeRisk = 'low' | 'medium' | 'high' | 'critical';
 
 export interface ChangeApproval {
-  id: string;
+  id?: string;
   approver: string;
-  role: string;
+  role?: string;
   status: 'pending' | 'approved' | 'rejected';
   comment?: string;
   timestamp?: string;
@@ -208,7 +251,7 @@ export interface Change {
 
 // ─── Knowledge Base ───────────────────────────────────────────────────────────
 export type KBArticleStatus = 'draft' | 'published' | 'archived';
-export type KBCategory = 'how-to' | 'troubleshooting' | 'known-error' | 'runbook' | 'policy' | 'faq';
+export type KBCategory = 'how-to' | 'troubleshooting' | 'known-error' | 'runbook' | 'policy' | 'faq' | 'template';
 
 export interface KBArticle {
   id: string;
@@ -230,7 +273,7 @@ export interface KBArticle {
 
 // ─── Postmortem ───────────────────────────────────────────────────────────────
 export interface PostmortemActionItem {
-  id: string;
+  id?: string;
   description: string;
   owner: string;
   dueDate: string;
@@ -260,7 +303,7 @@ export interface Postmortem {
 }
 
 // ─── Service Catalog ──────────────────────────────────────────────────────────
-export type ServiceCatalogCategory = 'access' | 'hardware' | 'software' | 'network' | 'security' | 'data' | 'other';
+export type ServiceCatalogCategory = 'access' | 'hardware' | 'software' | 'network' | 'security' | 'data' | 'other' | 'support' | 'infrastructure' | 'onboarding' | 'deployment' | 'developer-tools' | 'operations';
 
 export interface ServiceCatalogItem {
   id: string;
@@ -295,8 +338,8 @@ export interface Heartbeat {
 }
 
 // ─── Alert Routing Rules ──────────────────────────────────────────────────────
-export type RoutingConditionField = 'priority' | 'source' | 'tag' | 'message' | 'team';
-export type RoutingConditionOperator = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'matches';
+export type RoutingConditionField = 'priority' | 'source' | 'tag' | 'tags' | 'message' | 'team';
+export type RoutingConditionOperator = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'matches' | 'in' | 'not_in';
 
 export interface RoutingCondition {
   field: RoutingConditionField;
@@ -366,7 +409,7 @@ export interface NotificationChannel {
   id: string;
   name: string;
   type: NotificationChannelType;
-  config: Record<string, string>;
+  config: Record<string, unknown>;
   enabled: boolean;
   userId?: string;
   teamId?: string;

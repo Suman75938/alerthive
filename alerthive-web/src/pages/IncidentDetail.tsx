@@ -1,8 +1,9 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Users, Clock, Phone, MoreHorizontal, MessageSquarePlus, Building2, Cpu, Brain, Send } from 'lucide-react';
-import { mockIncidents, mockStakeholderUpdates, mockSimilarIncidents, mockCMDBAssets } from '../data/mockData';
-import { IncidentStatus, TimelineEvent, AlertPriority } from '../types';
+import { mockStakeholderUpdates, mockSimilarIncidents, mockCMDBAssets } from '../data/mockData';
+import { apiGet } from '../lib/api';
+import { Incident, IncidentStatus, TimelineEvent, AlertPriority } from '../types';
 
 const priorityConfig: Record<AlertPriority, { color: string; bg: string; label: string }> = {
   critical: { color: '#FF4757', bg: 'rgba(255,71,87,0.12)', label: 'Critical' },
@@ -22,12 +23,14 @@ const statusConfig: Record<IncidentStatus, { color: string; label: string }> = {
 
 const timelineTypeColors: Record<TimelineEvent['type'], string> = {
   created: '#1E90FF',
+  updated: '#B0A8C8',
   acknowledged: '#FFA502',
   escalated: '#FF4757',
   comment: '#B0A8C8',
   status_change: '#FFA502',
   assigned: '#1E90FF',
   resolved: '#2ED573',
+  note: '#B0A8C8',
 };
 
 function formatTime(d: string) {
@@ -45,10 +48,30 @@ export function IncidentDetail() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'stakeholders' | 'cmdb' | 'ai'>('overview');
 
-  const incident = mockIncidents.find((i) => i.id === incidentId);
+  const [incident, setIncident] = useState<Incident | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!incidentId) return;
+    setLoading(true);
+    apiGet<Incident>(`/incidents/${incidentId}`)
+      .then((r) => setIncident(r.data ?? null))
+      .catch(() => setIncident(null))
+      .finally(() => setLoading(false));
+  }, [incidentId]);
+
   const stakeholderUpdates = mockStakeholderUpdates.filter((u) => u.incidentId === (incident?.id === 'inc-001' ? 'INC-001' : 'NONE'));
   const similarIncidents = activeTab === 'ai' ? mockSimilarIncidents : [];
   const cmdbAssets = mockCMDBAssets.filter((a) => a.criticality === 'critical').slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-text-muted">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm">Loading incident...</p>
+      </div>
+    );
+  }
 
   if (!incident) {
     return (
@@ -97,8 +120,8 @@ export function IncidentDetail() {
       {/* Info Cards */}
       <div className="grid grid-cols-3 gap-3 mb-3">
         {[
-          { icon: Bell, value: incident.alertCount, label: 'Alerts' },
-          { icon: Users, value: incident.responders.length, label: 'Responders' },
+          { icon: Bell, value: incident.alertCount ?? 0, label: 'Alerts' },
+          { icon: Users, value: incident.responders?.length ?? 0, label: 'Responders' },
           { icon: Clock, value: `${durationMins(incident.createdAt)}m`, label: 'Duration' },
         ].map(({ icon: Icon, value, label }) => (
           <div key={label} className="bg-surface border border-border rounded-xl p-3 text-center">
@@ -159,7 +182,7 @@ export function IncidentDetail() {
       <section className="bg-surface border border-border rounded-xl p-4 mb-4">
         <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Responders</p>
         <div className="space-y-3">
-          {incident.responders.map((name, idx) => (
+          {(incident.responders ?? []).map((name, idx) => (
             <div key={name} className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold shrink-0">
                 {name.charAt(0)}
@@ -180,8 +203,8 @@ export function IncidentDetail() {
       <section className="bg-surface border border-border rounded-xl p-4 mb-4">
         <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">Timeline</p>
         <div className="space-y-4">
-          {[...incident.timeline].reverse().map((event, idx) => {
-            const color = timelineTypeColors[event.type];
+          {[...(incident.timeline ?? [])].reverse().map((event, idx) => {
+            const color = timelineTypeColors[event.type] ?? '#B0A8C8';
             return (
               <div key={event.id} className="flex gap-3">
                 <div className="flex flex-col items-center">
@@ -191,16 +214,16 @@ export function IncidentDetail() {
                   >
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                   </div>
-                  {idx < incident.timeline.length - 1 && (
+                  {idx < (incident.timeline?.length ?? 0) - 1 && (
                     <div className="w-px flex-1 bg-border mt-1" />
                   )}
                 </div>
                 <div className="pb-4 min-w-0">
                   <p className="text-sm text-text-primary leading-snug">{event.message}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-text-muted">{event.user}</span>
-                    <span className="text-text-muted text-xs">Ã‚Â·</span>
-                    <span className="text-xs text-text-muted">{formatTime(event.timestamp)}</span>
+                    <span className="text-xs text-text-muted">{event.user?.name ?? 'System'}</span>
+                    <span className="text-text-muted text-xs">·</span>
+                    <span className="text-xs text-text-muted">{formatTime(event.createdAt)}</span>
                   </div>
                 </div>
               </div>

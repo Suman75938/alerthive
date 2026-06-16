@@ -47,4 +47,14 @@ export const config = {
   kafka: {
     brokers: (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',').map((b) => b.trim()),
   },
+
+  ollama: {
+    baseUrl: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
+    model:   process.env.OLLAMA_MODEL    ?? 'llama3.1',
+  },
+
+  groq: {
+    apiKey: process.env.GROQ_API_KEY ?? '',
+    model:  process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  },
 } as const;

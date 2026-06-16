@@ -1,9 +1,9 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, Search, Plus, Flame, Activity } from 'lucide-react';
 import { IncidentCard } from '../components/IncidentCard';
-import { mockIncidents } from '../data/mockData';
-import { IncidentStatus } from '../types';
+import { apiGet } from '../lib/api';
+import { Incident, IncidentStatus } from '../types';
 import { Tooltip } from '../components/Tooltip';
 
 const statusColors: Record<IncidentStatus, string> = {
@@ -18,10 +18,20 @@ const statusFilters: (IncidentStatus | 'all')[] = ['all', 'triggered', 'investig
 
 export function Incidents() {
   const navigate = useNavigate();
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'all'>('all');
 
-  const filtered = mockIncidents.filter((i) => {
+  useEffect(() => {
+    setLoading(true);
+    apiGet<Incident[]>('/incidents', { pageSize: 100 })
+      .then((r) => setIncidents(r.data ?? []))
+      .catch(() => setIncidents([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = incidents.filter((i) => {
     const q = search.toLowerCase();
     const matchesSearch = !q || i.title.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q);
     const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
@@ -32,10 +42,10 @@ export function Incidents() {
   const resolved = filtered.filter((i) => i.status === 'resolved');
 
   const stats = [
-    { label: 'Active', value: mockIncidents.filter((i) => i.status !== 'resolved').length, color: '#FF4757', icon: Flame },
-    { label: 'Triggered', value: mockIncidents.filter((i) => i.status === 'triggered').length, color: '#FF6200', icon: AlertTriangle },
-    { label: 'Investigating', value: mockIncidents.filter((i) => i.status === 'investigating').length, color: '#FFA502', icon: Activity },
-    { label: 'Resolved', value: mockIncidents.filter((i) => i.status === 'resolved').length, color: '#2ED573', icon: CheckCircle },
+    { label: 'Active', value: incidents.filter((i) => i.status !== 'resolved').length, color: '#FF4757', icon: Flame },
+    { label: 'Triggered', value: incidents.filter((i) => i.status === 'triggered').length, color: '#FF6200', icon: AlertTriangle },
+    { label: 'Investigating', value: incidents.filter((i) => i.status === 'investigating').length, color: '#FFA502', icon: Activity },
+    { label: 'Resolved', value: incidents.filter((i) => i.status === 'resolved').length, color: '#2ED573', icon: CheckCircle },
   ];
 
   return (
@@ -65,7 +75,7 @@ export function Incidents() {
               <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-2xl font-bold text-text-primary">{value}</p>
+              <p className="text-2xl font-bold text-text-primary">{loading ? '-' : value}</p>
               <p className="text-xs text-text-muted">{label}</p>
             </div>
           </div>
@@ -107,50 +117,57 @@ export function Incidents() {
         ))}
       </div>
 
-      {/* Active Incidents */}
-      <section className="mb-6">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
-          <AlertTriangle size={14} className="text-critical" />
-          Active Incidents ({active.length})
-        </h2>
-        {active.length === 0 ? (
-          <div className="text-center py-10 text-text-muted bg-surface border border-border rounded-xl">
-            <CheckCircle size={40} className="mx-auto mb-2 opacity-30" />
-            <p>No active incidents</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-            {active.map((incident) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                onPress={() => navigate(`/incidents/${incident.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {loading ? (
+        <div className="text-center py-16 text-text-muted">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm">Loading incidents...</p>
+        </div>
+      ) : (
+        <>
+          {/* Active Incidents */}
+          <section className="mb-6">
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+              <AlertTriangle size={14} className="text-critical" />
+              Active Incidents ({active.length})
+            </h2>
+            {active.length === 0 ? (
+              <div className="text-center py-10 text-text-muted bg-surface border border-border rounded-xl">
+                <CheckCircle size={40} className="mx-auto mb-2 opacity-30" />
+                <p>No active incidents</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                {active.map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onPress={() => navigate(`/incidents/${incident.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-      {/* Resolved Incidents */}
-      {resolved.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
-            <CheckCircle size={14} className="text-low" />
-            Resolved ({resolved.length})
-          </h2>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-            {resolved.map((incident) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                onPress={() => navigate(`/incidents/${incident.id}`)}
-              />
-            ))}
-          </div>
-        </section>
+          {/* Resolved Incidents */}
+          {resolved.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+                <CheckCircle size={14} className="text-low" />
+                Resolved ({resolved.length})
+              </h2>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                {resolved.map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onPress={() => navigate(`/incidents/${incident.id}`)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
 }
-
-

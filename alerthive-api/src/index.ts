@@ -6,6 +6,8 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
 import { config } from './config';
 import { logger } from './utils/logger';
 import { connectDB, disconnectDB } from './db/prisma';
@@ -16,6 +18,7 @@ import routes from './routes';
 import { connectRedis, disconnectRedis } from './config/redis';
 import { connectKafkaProducer, disconnectKafkaProducer, isKafkaAvailable } from './config/kafka';
 import { startKafkaConsumer, stopKafkaConsumer } from './messaging/kafkaConsumer';
+import { warmUpOllama } from './controllers/chatController';
 
 const app = express();
 
@@ -33,6 +36,18 @@ app.use(
     stream: { write: (msg) => logger.http(msg.trim()) },
   }),
 );
+
+// ── Swagger UI ────────────────────────────────────────────────
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'AlertHive API Docs',
+    customCss: '.swagger-ui .topbar { background-color: #e11d48; }',
+    swaggerOptions: { persistAuthorization: true },
+  }),
+);
+app.get('/api-docs.json', (_req, res) => res.json(swaggerSpec));
 
 // ── Rate limiting ──────────────────────────────────────────────
 app.use(config.apiBase, apiLimiter);
@@ -66,6 +81,9 @@ async function start() {
   server.listen(config.port, () => {
     logger.info(`🚀  AlertHive API listening on http://localhost:${config.port}${config.apiBase}`);
   });
+
+  // Warm up the LLM so the first user request doesn't pay the cold-start penalty
+  warmUpOllama().catch(() => { /* non-fatal */ });
 }
 
 // ── Graceful shutdown ──────────────────────────────────────────

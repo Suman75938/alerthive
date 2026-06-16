@@ -76,17 +76,17 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
       <div className="flex items-center gap-4 text-xs text-text-muted">
         <span className="flex items-center gap-1">
           <Bell size={12} />
-          {incident.alertCount} alerts
+          {incident.alertCount ?? 0} alerts
         </span>
         <span className="flex items-center gap-1">
           <Users size={12} />
-          {incident.responders.length} responders
+          {incident.responders?.length ?? 0} responders
         </span>
         <span className="flex items-center gap-1">
           <Clock size={12} />
           {durationMins(incident.createdAt)}m
         </span>
-        <span className="ml-auto font-medium text-text-secondary">{incident.assignee}</span>
+        <span className="ml-auto font-medium text-text-secondary">{incident.assignee?.name ?? 'Unassigned'}</span>
       </div>
     </div>
   );

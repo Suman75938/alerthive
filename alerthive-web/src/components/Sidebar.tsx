@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   GitBranch,
   BookOpen,
   LayoutGrid,
+  Columns2,
   FileText,
   Zap,
   Radio,
@@ -29,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  X,
 } from 'lucide-react';
 import { mockAlerts, mockProblems, mockChanges } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +38,7 @@ import { useTickets } from '../context/TicketContext';
 import { useTheme } from '../context/ThemeContext';
 import { Tooltip } from './Tooltip';
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
   const openAlertCount = mockAlerts.filter((a) => a.status === 'open').length;
   const openProblemCount = mockProblems.filter((p) => p.status === 'detected' || p.status === 'investigating' || p.status === 'known_error').length;
   const pendingChangeCount = mockChanges.filter((c) => c.status === 'pending_approval').length;
@@ -48,10 +50,42 @@ export function Sidebar() {
 
   const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
   const [collapsed, setCollapsed] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const savedScrollPos = useRef(0);
+  const pendingScrollRestore = useRef<number | null>(null);
+
+  // Save scroll position on scroll
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const onScroll = () => { savedScrollPos.current = nav.scrollTop; };
+    nav.addEventListener('scroll', onScroll, { passive: true });
+    return () => nav.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Restore scroll position after each navigation
+  useEffect(() => {
+    if (navRef.current) {
+      navRef.current.scrollTop = savedScrollPos.current;
+    }
+  }, [location.pathname]);
+
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({
     itsm: true, self: true, insights: true, alerting: false, ops: false, admin: true, system: true,
   });
-  const toggleGroup = (id: string) => setGroupOpen((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Restore scroll after a group is toggled — snapshot before state update, apply after DOM mutation
+  useLayoutEffect(() => {
+    if (pendingScrollRestore.current !== null && navRef.current) {
+      navRef.current.scrollTop = pendingScrollRestore.current;
+      pendingScrollRestore.current = null;
+    }
+  }, [groupOpen]);
+
+  const toggleGroup = (id: string) => {
+    if (navRef.current) pendingScrollRestore.current = navRef.current.scrollTop;
+    setGroupOpen((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Role-based nav groups
   const mainNav = [
@@ -67,10 +101,12 @@ export function Sidebar() {
     ...(isEndUser
       ? []
       : [{ path: '/oncall', label: 'On-Call', icon: Shield, description: 'Manage on-call schedules and team coverage' }]),
-    { path: '/tickets', label: isEndUser ? 'My Tickets' : 'Tickets', icon: Ticket, badge: isEndUser ? 0 : openTickets, description: 'View and manage support tickets' },
     ...(isEndUser
-      ? [{ path: '/tickets/new', label: 'Raise Ticket', icon: PlusCircle, description: 'Submit a new support or service request' }]
-      : []),
+      ? [
+          { path: '/tickets', label: 'My Tickets', icon: Ticket, badge: 0, description: 'View and manage support tickets' },
+          { path: '/tickets/new', label: 'Raise Ticket', icon: PlusCircle, description: 'Submit a new support or service request' },
+        ]
+      : [{ path: '/kanban', label: 'Kanban Board', icon: Columns2, badge: openTickets, description: 'Drag-and-drop board with sprint, team, and assignee filters' }]),
   ];
 
   const itsmNav = (isAdmin || isDeveloper)
@@ -119,9 +155,10 @@ export function Sidebar() {
     const link = (
       <NavLink
         to={path}
+        onClick={onMobileClose}
         className={[
           collapsed
-            ? 'relative flex items-center justify-center p-2.5 rounded-lg transition-colors w-full'
+            ? 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full lg:relative lg:justify-center lg:p-2.5 lg:gap-0'
             : 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full',
           isActive
             ? 'bg-primary/10 text-primary'
@@ -129,16 +166,18 @@ export function Sidebar() {
         ].join(' ')}
       >
         <Icon size={18} className="shrink-0" />
-        {!collapsed && <span>{label}</span>}
-        {!collapsed && badge != null && badge > 0 && (
-          <span className="ml-auto bg-critical text-white text-xs font-bold px-2 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
-        {collapsed && badge != null && badge > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-critical text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-            {badge}
-          </span>
+        <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
+        {badge != null && badge > 0 && (
+          <>
+            <span className={`ml-auto bg-critical text-white text-xs font-bold px-2 py-0.5 rounded-full ${collapsed ? 'lg:hidden' : ''}`}>
+              {badge}
+            </span>
+            {collapsed && (
+              <span className="hidden lg:flex absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-critical text-white text-[8px] font-bold rounded-full items-center justify-center">
+                {badge}
+              </span>
+            )}
+          </>
         )}
       </NavLink>
     );
@@ -149,48 +188,56 @@ export function Sidebar() {
   }
 
   function NavGroup({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
-    if (collapsed) return <>{children}</>;
     const open = groupOpen[id] ?? true;
     return (
       <>
         <button
           onClick={() => toggleGroup(id)}
-          className="w-full flex items-center justify-between pt-3 pb-1 px-3 group/hdr"
+          className={`w-full flex items-center justify-between pt-3 pb-1 px-3 group/hdr ${collapsed ? 'lg:hidden' : ''}`}
         >
           <span className="text-xs text-text-muted font-medium uppercase tracking-wider group-hover/hdr:text-text-secondary transition-colors">{label}</span>
           <ChevronDown size={11} className={`text-text-muted transition-transform duration-150 ${open ? '' : '-rotate-90'}`} />
         </button>
-        {open && <div className="pl-2">{children}</div>}
+        <div className={collapsed && !open ? 'hidden lg:block' : !collapsed && !open ? 'hidden' : collapsed ? '' : 'pl-2'}>
+          {children}
+        </div>
       </>
     );
   }
 
   return (
-    <aside className={`flex flex-col min-h-screen bg-surface border-r border-border shrink-0 transition-all duration-200 ${collapsed ? 'w-14' : 'w-60'}`}>
+    <aside className={`fixed lg:static inset-y-0 left-0 z-50 lg:z-auto flex flex-col h-full lg:h-screen bg-surface border-r border-border shrink-0 transition-all duration-300 w-60 ${collapsed ? 'lg:w-14' : ''} ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Logo */}
-      <div className={`flex items-center border-b border-border ${collapsed ? 'flex-col gap-2 px-2 py-4' : 'gap-3 px-4 py-5'}`}>
+      <div className={`flex items-center border-b border-border gap-3 px-4 py-5 ${collapsed ? 'lg:flex-col lg:gap-2 lg:px-2 lg:py-4' : ''}`}>
         <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-md shrink-0">
           <Activity size={20} className="text-accent" />
         </div>
-        {!collapsed && (
-          <div className="flex-1 min-w-0">
-            <span className="text-xl font-bold tracking-tight">
-              <span className="text-text-primary">Alert</span><span className="text-accent">Hive</span>
-            </span>
-            <p className="text-xs text-text-muted leading-none mt-0.5">Incident Management</p>
-          </div>
-        )}
+        <div className={`flex-1 min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
+          <span className="text-xl font-bold tracking-tight">
+            <span className="text-text-primary">Alert</span><span className="text-accent">Hive</span>
+          </span>
+          <p className="text-xs text-text-muted leading-none mt-0.5">Incident Management</p>
+        </div>
+        {/* Desktop: collapse/expand toggle */}
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-light transition-colors shrink-0"
+          className="hidden lg:flex p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-light transition-colors shrink-0"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
+        {/* Mobile: close drawer button */}
+        <button
+          onClick={onMobileClose}
+          className="flex lg:hidden p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-light transition-colors shrink-0"
+          aria-label="Close navigation"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${collapsed ? 'px-1' : 'px-3'}`}>
+      <nav ref={navRef} className={`flex-1 py-4 space-y-1 overflow-y-auto px-3 ${collapsed ? 'lg:px-1' : ''}`}>
         {mainNav.map((item) => <NavItem key={item.path} {...item} />)}
 
         {(isAdmin || isDeveloper) && (
@@ -232,17 +279,15 @@ export function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div className={`border-t border-border ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
-        <div className={`flex items-center ${collapsed ? 'flex-col gap-2' : 'gap-3'}`}>
+      <div className={`border-t border-border px-4 py-4 ${collapsed ? 'lg:px-2 lg:py-3' : ''}`}>
+        <div className={`flex items-center gap-3 ${collapsed ? 'lg:flex-col lg:gap-2' : ''}`}>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold shrink-0">
             {initials}
           </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-primary truncate">{user?.name ?? 'Guest'}</p>
-              <p className="text-xs text-text-muted truncate">{roleLabel}</p>
-            </div>
-          )}
+          <div className={`min-w-0 flex-1 ${collapsed ? 'lg:hidden' : ''}`}>
+            <p className="text-sm font-medium text-text-primary truncate">{user?.name ?? 'Guest'}</p>
+            <p className="text-xs text-text-muted truncate">{roleLabel}</p>
+          </div>
           <button
             onClick={toggleTheme}
             className="text-text-muted hover:text-text-primary transition-colors p-1 rounded"

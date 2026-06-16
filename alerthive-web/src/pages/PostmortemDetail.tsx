@@ -1,18 +1,18 @@
 ﻿import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle2, Clock, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { useState } from 'react';
-import { mockPostmortems } from '../data/mockData';
-import { AlertPriority } from '../types';
+import { useState, useEffect } from 'react';
+import { Postmortem, AlertPriority } from '../types';
+import { apiGet } from '../lib/api';
 
 const PRIORITY_COLOR: Record<AlertPriority, string> = {
-  critical: 'text-red-400', high: 'text-orange-400', medium: 'text-yellow-400',
-  low: 'text-blue-400', info: 'text-gray-400',
+  critical: 'text-critical', high: 'text-high', medium: 'text-medium',
+  low: 'text-low', info: 'text-info',
 };
 
 const ACTION_STATUS_CONFIG = {
-  open:        { label: 'Open',        color: 'text-yellow-400', bg: 'bg-yellow-400/10', icon: Clock },
-  in_progress: { label: 'In Progress', color: 'text-orange-400', bg: 'bg-orange-400/10', icon: AlertTriangle },
-  completed:   { label: 'Completed',   color: 'text-green-400',  bg: 'bg-green-400/10',  icon: CheckCircle2 },
+  open:        { label: 'Open',        color: 'text-medium',     bg: 'bg-medium/10',     icon: Clock },
+  in_progress: { label: 'In Progress', color: 'text-high',       bg: 'bg-high/10',       icon: AlertTriangle },
+  completed:   { label: 'Completed',   color: 'text-low',        bg: 'bg-low/10',        icon: CheckCircle2 },
 } as const;
 
 const TABS = ['summary', '5 whys', 'action items'] as const;
@@ -23,24 +23,33 @@ export default function PostmortemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('summary');
+  const [pm, setPm] = useState<Postmortem | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const pm = mockPostmortems.find((p) => p.id === id);
+  useEffect(() => {
+    if (!id) return;
+    apiGet<Postmortem>(`/postmortems/${id}`)
+      .then((r) => setPm(r.data ?? null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="p-6 text-center text-text-muted">Loading…</div>;
   if (!pm) {
     return (
       <div className="p-6 text-center text-text-muted">
         <FileText size={40} className="mx-auto mb-3 opacity-30" />
         <p>Postmortem not found.</p>
         <button onClick={() => navigate('/postmortems')} className="mt-3 text-primary text-sm hover:underline">
-          â† Back to Postmortems
+          ← Back to Postmortems
         </button>
       </div>
     );
   }
 
-  const openActions = pm.actionItems.filter((a) => a.status === 'open').length;
+  const openActions = (pm.actionItems ?? []).filter((a) => a.status === 'open').length;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       <button
         onClick={() => navigate('/postmortems')}
         className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors"
@@ -52,7 +61,7 @@ export default function PostmortemDetail() {
       <div className="bg-surface border border-border rounded-xl p-6">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className="text-xs font-mono text-text-muted">{pm.id}</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pm.status === 'published' ? 'bg-green-400/10 text-green-400' : pm.status === 'review' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-gray-400/10 text-gray-400'}`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pm.status === 'published' ? 'bg-low/10 text-low' : pm.status === 'review' ? 'bg-medium/10 text-medium' : 'bg-surface-light text-text-muted'}`}>
             {pm.status.charAt(0).toUpperCase() + pm.status.slice(1)}
           </span>
           <span className={`text-xs font-medium ${PRIORITY_COLOR[pm.severity]}`}>
@@ -70,7 +79,7 @@ export default function PostmortemDetail() {
           ].map((item) => (
             <div key={item.label}>
               <p className="text-xs text-text-muted">{item.label}</p>
-              <p className={`text-sm font-semibold mt-0.5 ${item.highlight ? 'text-orange-400' : 'text-text-primary'}`}>{item.value}</p>
+              <p className={`text-sm font-semibold mt-0.5 ${item.highlight ? 'text-high' : 'text-text-primary'}`}>{item.value}</p>
             </div>
           ))}
         </div>
@@ -92,7 +101,7 @@ export default function PostmortemDetail() {
           >
             {t}
             {t === 'action items' && openActions > 0 && (
-              <span className="ml-1.5 bg-orange-400/20 text-orange-400 text-xs px-1.5 py-0.5 rounded-full">{openActions}</span>
+              <span className="ml-1.5 bg-high/20 text-high text-xs px-1.5 py-0.5 rounded-full">{openActions}</span>
             )}
           </button>
         ))}
@@ -103,33 +112,33 @@ export default function PostmortemDetail() {
         {tab === 'summary' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="bg-surface border border-green-900/40 rounded-xl p-3">
-                <h3 className="text-green-400 text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-surface border border-low/30 rounded-xl p-3">
+                <h3 className="text-low text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
                   <ThumbsUp size={13} /> What Went Well
                 </h3>
                 <ul className="space-y-1.5">
                   {pm.whatWentWell.map((item, i) => (
                     <li key={i} className="text-sm text-text-primary flex items-start gap-2">
-                      <span className="text-green-400 mt-0.5">âœ“</span> {item}
+                      <span className="text-low mt-0.5">âœ“</span> {item}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-surface border border-red-900/40 rounded-xl p-3">
-                <h3 className="text-red-400 text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
+              <div className="bg-surface border border-critical/30 rounded-xl p-3">
+                <h3 className="text-critical text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
                   <ThumbsDown size={13} /> What Went Wrong
                 </h3>
                 <ul className="space-y-1.5">
                   {pm.whatWentWrong.map((item, i) => (
                     <li key={i} className="text-sm text-text-primary flex items-start gap-2">
-                      <span className="text-red-400 mt-0.5">âœ—</span> {item}
+                      <span className="text-critical mt-0.5">âœ—</span> {item}
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
             <div className="bg-surface border border-border rounded-xl p-3">
-              <h3 className="text-xs font-semibold text-orange-400 mb-2 uppercase tracking-wide">Root Cause</h3>
+              <h3 className="text-xs font-semibold text-high mb-2 uppercase tracking-wide">Root Cause</h3>
               <p className="text-text-primary text-sm leading-relaxed">{pm.rootCause}</p>
             </div>
             <div className="bg-surface border border-border rounded-xl p-3">
@@ -168,13 +177,13 @@ export default function PostmortemDetail() {
 
         {tab === 'action items' && (
           <div className="space-y-3">
-            {pm.actionItems.length === 0 && (
+            {(pm.actionItems ?? []).length === 0 && (
               <div className="text-center py-10 text-text-muted">
                 <CheckCircle2 size={30} className="mx-auto mb-2 opacity-30" />
                 <p>No action items defined yet.</p>
               </div>
             )}
-            {pm.actionItems.map((item) => {
+            {(pm.actionItems ?? []).map((item) => {
               const cfg = ACTION_STATUS_CONFIG[item.status];
               const Icon = cfg.icon;
               return (

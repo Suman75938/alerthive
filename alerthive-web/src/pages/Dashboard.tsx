@@ -4,13 +4,14 @@ import {
   Bell, Flame, AlertTriangle, CheckCircle,
   PlusCircle, Megaphone, Shield, BarChart2,
   Bug, GitBranch, FileText, BookOpen,
-  TrendingUp, Calendar, Maximize2, X,
+  TrendingUp, Calendar, Maximize2, X, ExternalLink,
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { IncidentCard } from '../components/IncidentCard';
 import { AlertCard } from '../components/AlertCard';
 import { Tooltip } from '../components/Tooltip';
-import { mockAlerts, mockIncidents, mockProblems, mockChanges, mockPostmortems, mockSchedules } from '../data/mockData';
+import { apiGet } from '../lib/api';
+import type { Alert, Incident, Problem, Change, Postmortem } from '../types';
 
 interface ChartTip {
   title: string;
@@ -138,8 +139,8 @@ function LineChart({ data, color = '#6366f1', expanded = false, onTip, onHovIdx,
         <g key={i}>
           <circle cx={toX(i)} cy={toY(d.count)} r={hovIdx === i ? (expanded ? 7 : 5) : (n <= 7 ? 3 : 2)} fill={color} />
           {d.count > 0 && (
-            <text x={toX(i)} y={toY(d.count) > padTop + 22 ? toY(d.count) - 16 : toY(d.count) + 14}
-              fill={color} fontSize={expanded ? 9 : 7} textAnchor="middle" fontWeight="600">{d.count}</text>
+            <text x={toX(i)} y={toY(d.count) > padTop + 26 ? toY(d.count) - 18 : toY(d.count) + 16}
+              fill={color} fontSize={expanded ? 11 : 10} textAnchor="middle" fontWeight="600">{d.count}</text>
           )}
         </g>
       ))}
@@ -173,7 +174,7 @@ function BarChart({ data, color = '#10b981', expanded = false, onTip }: BarChart
   const lastTipRef = useRef<ChartTip | null>(null);
   const cW = expanded ? 760 : 560;
   const cH = expanded ? 260 : 200;
-  const padTop = 12, padLeft = expanded ? 44 : 36, padRight = 10, padBottom = expanded ? 30 : 26;
+  const padTop = expanded ? 20 : 26, padLeft = expanded ? 44 : 36, padRight = 10, padBottom = expanded ? 30 : 26;
   const W = cW - padLeft - padRight;
   const H = cH - padTop - padBottom;
   const n = data.length;
@@ -241,8 +242,8 @@ function BarChart({ data, color = '#10b981', expanded = false, onTip }: BarChart
             <rect x={x} y={y} width={barW} height={bH} fill={color} rx={3} opacity={0.88} />
             <rect x={x} y={0} width={barW} height={cH - padBottom} fill="transparent" />
             {d.count > 0 && (
-              <text x={x + barW / 2} y={Math.max(y - 3, padTop + 8)}
-                fill={color} fontSize={expanded ? 9 : 7} textAnchor="middle" fontWeight="600">{d.count}</text>
+              <text x={x + barW / 2} y={Math.max(y - 6, 10)}
+                fill={color} fontSize={expanded ? 11 : 10} textAnchor="middle" fontWeight="600">{d.count}</text>
             )}
           </g>
         );
@@ -328,17 +329,31 @@ function PieChart({ slices, showLegend, expanded = false, onTip }: PieChartProps
 export function Dashboard() {
   const navigate = useNavigate();
 
-  const openAlerts = mockAlerts.filter((a) => a.status === 'open');
-  const criticalAlerts = mockAlerts.filter((a) => a.priority === 'critical' && a.status !== 'closed');
-  const activeIncidents = mockIncidents.filter((i) => i.status !== 'resolved');
+  const [alerts, setAlerts]         = useState<Alert[]>([]);
+  const [incidents, setIncidents]   = useState<Incident[]>([]);
+  const [problems, setProblems]     = useState<Problem[]>([]);
+  const [changes, setChanges]       = useState<Change[]>([]);
+  const [postmortems, setPostmortems] = useState<Postmortem[]>([]);
+
+  useEffect(() => {
+    apiGet<Alert[]>('/alerts', { pageSize: 500 }).then((r) => setAlerts(r.data ?? []));
+    apiGet<Incident[]>('/incidents', { pageSize: 200 }).then((r) => setIncidents(r.data ?? []));
+    apiGet<Problem[]>('/problems', { pageSize: 200 }).then((r) => setProblems(r.data ?? []));
+    apiGet<Change[]>('/changes', { pageSize: 200 }).then((r) => setChanges(r.data ?? []));
+    apiGet<Postmortem[]>('/postmortems', { pageSize: 200 }).then((r) => setPostmortems(r.data ?? []));
+  }, []);
+
+  const openAlerts = alerts.filter((a) => a.status === 'open');
+  const criticalAlerts = alerts.filter((a) => a.priority === 'critical' && a.status !== 'closed');
+  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
   const infraSources = new Set(['Nagios', 'Kubernetes', 'Prometheus', 'Zabbix', 'CloudWatch', 'Grafana']);
-  const infraAlerts = mockAlerts.filter((a) => infraSources.has(a.source) || a.tags?.some((t) => t.toLowerCase().includes('infrastructure')));
-  const appAlerts = mockAlerts.filter((a) => !infraSources.has(a.source) && !a.tags?.some((t) => t.toLowerCase().includes('infrastructure')));
-  const acknowledgedAlerts = mockAlerts.filter((a) => a.status === 'acknowledged');
-  const openProblems = mockProblems.filter((p) => p.status !== 'resolved' && p.status !== 'closed');
-  const knownErrors = mockProblems.filter((p) => p.knownError && p.status !== 'resolved' && p.status !== 'closed');
-  const pendingChanges = mockChanges.filter((c) => c.status === 'pending_approval');
-  const emergencyChanges = mockChanges.filter((c) => c.type === 'emergency' && c.status === 'in_progress');
+  const infraAlerts = alerts.filter((a) => infraSources.has(a.source) || a.tags?.some((t) => t.toLowerCase().includes('infrastructure')));
+  const appAlerts = alerts.filter((a) => !infraSources.has(a.source) && !a.tags?.some((t) => t.toLowerCase().includes('infrastructure')));
+  const acknowledgedAlerts = alerts.filter((a) => a.status === 'acknowledged');
+  const openProblems = problems.filter((p) => p.status !== 'resolved' && p.status !== 'closed');
+  const knownErrors = problems.filter((p) => p.knownError && p.status !== 'resolved' && p.status !== 'closed');
+  const pendingChanges = changes.filter((c) => c.status === 'pending_approval');
+  const emergencyChanges = changes.filter((c) => c.type === 'emergency' && c.status === 'in_progress');
 
   const serviceData: Record<string, [string, number][]> = {
     '7d': [['Shipment Tracking', 14], ['Pick Up Service', 11], ['Claims Processing', 8], ['Delivery Mgmt', 5], ['Returns Portal', 3]],
@@ -380,7 +395,7 @@ export function Dashboard() {
   const totalSolved = solvedTrend.reduce((s, d) => s + d.count, 0);
   const avgSolved = Math.round(totalSolved / solvedTrend.length);
 
-  const nonClosedAlerts = mockAlerts.filter((a) => a.status !== 'closed');
+  const nonClosedAlerts = alerts.filter((a) => a.status !== 'closed');
   const totalNonClosed = nonClosedAlerts.length || 1;
   const pieRawData = (['critical', 'high', 'medium', 'low', 'info'] as const)
     .map((p) => ({ priority: p, count: nonClosedAlerts.filter((a) => a.priority === p).length, color: PIE_COLORS[p] }))
@@ -423,7 +438,7 @@ export function Dashboard() {
     return () => document.removeEventListener('mousedown', onOutside);
   }, [showNotif]);
 
-  const notifications = mockAlerts
+  const notifications = alerts
     .filter((a) => a.status === 'open' || a.status === 'acknowledged')
     .sort((a, b) => {
       const ord: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
@@ -527,7 +542,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-3">
         <StatCard title="Open Alerts" value={openAlerts.length} icon={Bell} color="#FF4757" tooltip="Total unresolved alerts" />
         <StatCard title="Critical" value={criticalAlerts.length} icon={Flame} color="#FF6200" tooltip="Active critical alerts" />
         <StatCard title="Incidents" value={activeIncidents.length} icon={AlertTriangle} color="#FFA502" tooltip="Open incidents" />
@@ -547,7 +562,7 @@ export function Dashboard() {
         <Tooltip text="Post-incident reviews" side="bottom" wrapperClass="block">
           <button onClick={() => navigate('/postmortems')} className="w-full bg-surface border border-border rounded-lg p-2.5 flex items-center gap-2 hover:border-primary/40 transition-colors">
             <div className="w-7 h-7 rounded-md bg-blue-400/10 flex items-center justify-center shrink-0"><FileText size={13} className="text-blue-400" /></div>
-            <div className="min-w-0"><p className="text-base font-bold text-text-primary leading-none">{mockPostmortems.length}</p><p className="text-xs text-text-muted mt-0.5 truncate">Postmortems</p></div>
+            <div className="min-w-0"><p className="text-base font-bold text-text-primary leading-none">{postmortems.length}</p><p className="text-xs text-text-muted mt-0.5 truncate">Postmortems</p></div>
           </button>
         </Tooltip>
         <Tooltip text="Known Error Database" side="bottom" wrapperClass="block">
@@ -617,26 +632,27 @@ export function Dashboard() {
           <div className="p-3 flex-1 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-surface-light rounded-lg p-2.5 text-center cursor-default"
-                onMouseEnter={(e) => setChartTip({ title: 'Infrastructure Alerts', rows: [{ label: 'Count', value: String(infraAlerts.length), color: '#6366f1' }, { label: 'Share', value: `${Math.round((infraAlerts.length / Math.max(mockAlerts.length, 1)) * 100)}%` }, { label: 'Open', value: String(infraAlerts.filter(a => a.status === 'open').length) }, { label: 'Critical', value: String(infraAlerts.filter(a => a.priority === 'critical').length) }], x: e.clientX, y: e.clientY })}
+                onMouseEnter={(e) => setChartTip({ title: 'Infrastructure Alerts', rows: [{ label: 'Count', value: String(infraAlerts.length), color: '#6366f1' }, { label: 'Share', value: `${Math.round((infraAlerts.length / Math.max(alerts.length, 1)) * 100)}%` }, { label: 'Open', value: String(infraAlerts.filter(a => a.status === 'open').length) }, { label: 'Critical', value: String(infraAlerts.filter(a => a.priority === 'critical').length) }], x: e.clientX, y: e.clientY })}
                 onMouseMove={(e) => setChartTip((p) => p ? { ...p, x: e.clientX, y: e.clientY } : null)}
                 onMouseLeave={() => setChartTip(null)}>
                 <p className="text-[10px] text-text-muted mb-1">Infrastructure</p>
                 <p className="text-2xl font-bold text-primary leading-none">{infraAlerts.length}</p>
                 <div className="mt-2 bg-border/50 rounded-full h-1">
-                  <div className="h-1 rounded-full bg-primary/60 transition-all" style={{ width: `${Math.round((infraAlerts.length / Math.max(mockAlerts.length, 1)) * 100)}%` }} />
+                  <div className="h-1 rounded-full bg-primary/60 transition-all" style={{ width: `${Math.round((infraAlerts.length / Math.max(alerts.length, 1)) * 100)}%` }} />
                 </div>
               </div>
               <div className="bg-surface-light rounded-lg p-2.5 text-center cursor-default"
-                onMouseEnter={(e) => setChartTip({ title: 'Application Alerts', rows: [{ label: 'Count', value: String(appAlerts.length), color: '#f97316' }, { label: 'Share', value: `${Math.round((appAlerts.length / Math.max(mockAlerts.length, 1)) * 100)}%` }, { label: 'Open', value: String(appAlerts.filter(a => a.status === 'open').length) }, { label: 'Critical', value: String(appAlerts.filter(a => a.priority === 'critical').length) }], x: e.clientX, y: e.clientY })}
+                onMouseEnter={(e) => setChartTip({ title: 'Application Alerts', rows: [{ label: 'Count', value: String(appAlerts.length), color: '#f97316' }, { label: 'Share', value: `${Math.round((appAlerts.length / Math.max(alerts.length, 1)) * 100)}%` }, { label: 'Open', value: String(appAlerts.filter(a => a.status === 'open').length) }, { label: 'Critical', value: String(appAlerts.filter(a => a.priority === 'critical').length) }], x: e.clientX, y: e.clientY })}
                 onMouseMove={(e) => setChartTip((p) => p ? { ...p, x: e.clientX, y: e.clientY } : null)}
                 onMouseLeave={() => setChartTip(null)}>
                 <p className="text-[10px] text-text-muted mb-1">Application</p>
                 <p className="text-2xl font-bold text-high leading-none">{appAlerts.length}</p>
                 <div className="mt-2 bg-border/50 rounded-full h-1">
-                  <div className="h-1 rounded-full bg-high/60 transition-all" style={{ width: `${Math.round((appAlerts.length / Math.max(mockAlerts.length, 1)) * 100)}%` }} />
+                  <div className="h-1 rounded-full bg-high/60 transition-all" style={{ width: `${Math.round((appAlerts.length / Math.max(alerts.length, 1)) * 100)}%` }} />
                 </div>
               </div>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-[11px]">
               <thead>
                 <tr>
@@ -660,13 +676,17 @@ export function Dashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
       </div>
 
       {/* Section Divider: Trend Analysis */}
-      <div className="flex items-center justify-center my-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+      <div className="flex items-center justify-between my-3 py-1.5 px-3 rounded-lg bg-primary/5 border border-primary/10">
         <span className="text-[10px] font-bold tracking-widest uppercase text-primary/70">Trend Analysis</span>
+        <button onClick={() => navigate('/analytics')} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+          Full Analytics <ExternalLink size={11} />
+        </button>
       </div>
 
       {/* Row 4: Trends side by side */}

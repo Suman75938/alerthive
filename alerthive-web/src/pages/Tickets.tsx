@@ -1,9 +1,9 @@
 ﻿import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTickets } from '../context/TicketContext';
 import { useAuth } from '../context/AuthContext';
 import { Ticket, TicketStatus, AlertPriority } from '../types';
-import { Plus, Search, Filter, AlertTriangle, Clock, CheckCircle, Pause, XCircle } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, Clock, CheckCircle, Pause, XCircle, List } from 'lucide-react';
 import { slaTimeLeft } from '../data/slaData';
 import { Tooltip } from '../components/Tooltip';
 
@@ -31,7 +31,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
   return (
     <Link
       to={`/tickets/${ticket.id}`}
-      className="flex items-center gap-4 px-5 py-4 hover:bg-surface-light/60 transition-colors border-b border-border-light/50 last:border-0"
+      className="flex items-center gap-4 px-5 py-4 hover:bg-surface-light/60 transition-colors"
     >
       <span className={`text-xs font-bold w-6 ${PRIORITY_COLORS[ticket.priority]}`}>
         {ticket.priority[0].toUpperCase()}
@@ -80,7 +80,7 @@ export default function Tickets() {
     );
 
   return (
-    <div className="space-y-5">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -89,16 +89,18 @@ export default function Tickets() {
             {isEndUser ? 'Track your submitted requests' : 'Manage and resolve support tickets'}
           </p>
         </div>
-        {isEndUser && (
-          <Tooltip text="Submit a new support ticket" side="bottom">
-            <button
-              onClick={() => navigate('/tickets/new')}
-              className="flex items-center gap-2 bg-accent hover:bg-accent-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Raise Ticket
-            </button>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isEndUser && (
+            <Tooltip text="Submit a new support ticket" side="bottom">
+              <button
+                onClick={() => navigate('/tickets/new')}
+                className="flex items-center gap-2 bg-accent hover:bg-accent-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Raise Ticket
+              </button>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -129,7 +131,7 @@ export default function Tickets() {
       </div>
 
       {/* List */}
-      <div className="bg-surface rounded-xl border border-border-light overflow-hidden">
+      <div className="bg-surface rounded-xl border border-border overflow-hidden divide-y divide-border">
         {visible.length === 0 ? (
           <div className="py-16 text-center text-text-muted">
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 opacity-30" />

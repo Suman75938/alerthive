@@ -1,7 +1,7 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Wrench, Clock, CheckCircle, AlertTriangle, XCircle, BellOff, Server, Plus } from 'lucide-react';
-import { mockMaintenanceWindows } from '../data/mockData';
 import { MaintenanceWindow, MaintenanceWindowStatus } from '../types';
+import { apiGet } from '../lib/api';
 import { Tooltip } from '../components/Tooltip';
 
 const statusConfig: Record<MaintenanceWindowStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -90,16 +90,21 @@ function WindowCard({ mw }: { mw: MaintenanceWindow }) {
 }
 
 export default function MaintenanceWindows() {
+  const [windows, setWindows] = useState<MaintenanceWindow[]>([]);
   const [filter, setFilter] = useState<MaintenanceWindowStatus | 'all'>('all');
 
+  useEffect(() => {
+    apiGet<MaintenanceWindow[]>('/maintenance').then((r) => setWindows(r.data ?? []));
+  }, []);
+
   const counts = {
-    active: mockMaintenanceWindows.filter((m) => m.status === 'active').length,
-    scheduled: mockMaintenanceWindows.filter((m) => m.status === 'scheduled').length,
-    completed: mockMaintenanceWindows.filter((m) => m.status === 'completed').length,
-    cancelled: mockMaintenanceWindows.filter((m) => m.status === 'cancelled').length,
+    active: windows.filter((m) => m.status === 'active').length,
+    scheduled: windows.filter((m) => m.status === 'scheduled').length,
+    completed: windows.filter((m) => m.status === 'completed').length,
+    cancelled: windows.filter((m) => m.status === 'cancelled').length,
   };
 
-  const filtered = filter === 'all' ? mockMaintenanceWindows : mockMaintenanceWindows.filter((m) => m.status === filter);
+  const filtered = filter === 'all' ? windows : windows.filter((m) => m.status === filter);
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
@@ -151,7 +156,7 @@ export default function MaintenanceWindows() {
                 : 'bg-surface border border-border text-text-muted hover:text-text-primary'
             }`}
           >
-            {s === 'all' ? `All (${mockMaintenanceWindows.length})` : `${s} (${counts[s as MaintenanceWindowStatus]})`}
+            {s === 'all' ? `All (${windows.length})` : `${s} (${counts[s as MaintenanceWindowStatus]})`}
           </button>
         ))}
       </div>

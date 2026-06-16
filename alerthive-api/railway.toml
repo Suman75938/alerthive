@@ -1,0 +1,9 @@
+[build]
+dockerfilePath = "Dockerfile.railway"
+
+[deploy]
+startCommand = "sh -c 'npx prisma db push --accept-data-loss && node dist/index.js'"
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

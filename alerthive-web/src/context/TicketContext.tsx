@@ -12,7 +12,7 @@ interface TicketContextValue {
   assignTicket: (id: string, userId: string, userName: string) => void;
   addComment: (id: string, comment: Omit<TicketComment, 'id' | 'createdAt'>) => void;
   updateSLAPolicy: (id: string, updates: Partial<SLAPolicy>) => void;
-  updateTicket: (id: string, updates: Partial<Pick<Ticket, 'issueCategory' | 'rootCause' | 'resolution'>>) => void;
+  updateTicket: (id: string, updates: Partial<Pick<Ticket, 'issueCategory' | 'rootCause' | 'resolution' | 'type' | 'team' | 'iteration' | 'storyPoints'>>) => void;
 }
 
 const TicketContext = createContext<TicketContextValue | null>(null);
@@ -82,7 +82,7 @@ export function TicketProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const updateTicket = useCallback((id: string, updates: Partial<Pick<Ticket, 'issueCategory' | 'rootCause' | 'resolution'>>) => {
+  const updateTicket = useCallback((id: string, updates: Partial<Pick<Ticket, 'issueCategory' | 'rootCause' | 'resolution' | 'type' | 'team' | 'iteration' | 'storyPoints'>>) => {
     setTickets((prev) =>
       prev.map((t) =>
         t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t

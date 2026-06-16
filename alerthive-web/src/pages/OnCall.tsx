@@ -1,12 +1,24 @@
-﻿import { Phone, Mail, RefreshCw, Shield } from 'lucide-react';
-import { mockSchedules, mockTeamMembers } from '../data/mockData';
+﻿import { useState, useEffect } from 'react';
+import { Phone, Mail, RefreshCw, Shield } from 'lucide-react';
+import { apiGet } from '../lib/api';
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export function OnCall() {
-  const onCallMembers = mockTeamMembers.filter((m) => m.isOnCall);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiGet<any[]>('/oncall').then((r) => setSchedules(r.data ?? []));
+    apiGet<{ data: any[] }>('/users', { pageSize: 200 }).then((r) => {
+      const users = (r.data as any)?.data ?? r.data ?? [];
+      setMembers(users);
+    });
+  }, []);
+
+  const onCallMembers = members.filter((m) => m.isOnCall);
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
@@ -22,9 +34,9 @@ export function OnCall() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
         {[
           { label: 'On-Call Now', value: onCallMembers.length, color: '#2ED573' },
-          { label: 'Total Members', value: mockTeamMembers.length, color: '#1E90FF' },
-          { label: 'Schedules', value: mockSchedules.length, color: '#FFA502' },
-          { label: 'Teams', value: [...new Set(mockSchedules.map((s) => s.team))].length, color: '#FF6200' },
+          { label: 'Total Members', value: members.length, color: '#1E90FF' },
+          { label: 'Schedules', value: schedules.length, color: '#FFA502' },
+          { label: 'Teams', value: [...new Set(schedules.map((s: any) => s.team?.name ?? s.teamId))].length, color: '#FF6200' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-surface border border-border rounded-xl p-4">
             <p className="text-2xl font-bold" style={{ color }}>{value}</p>
@@ -43,7 +55,7 @@ export function OnCall() {
           {onCallMembers.map((member) => (
             <div key={member.id} className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
-                {member.name.split(' ').map((n) => n[0]).join('')}
+                {member.name.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div>
                 <p className="text-sm font-semibold text-text-primary">{member.name}</p>
@@ -58,12 +70,12 @@ export function OnCall() {
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Rotation Schedules</h2>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          {mockSchedules.map((schedule) => (
+          {schedules.map((schedule: any) => (
             <div key={schedule.id} className="bg-surface border border-border rounded-xl p-3">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-base font-semibold text-text-primary">{schedule.name}</h3>
-                  <p className="text-xs text-text-muted mt-0.5">{schedule.team}</p>
+                <p className="text-xs text-text-muted mt-0.5">{schedule.team?.name ?? schedule.teamId}</p>
                 </div>
                 <span className="text-xs font-medium text-text-secondary bg-surface-light px-2.5 py-1 rounded-full capitalize flex items-center gap-1">
                   <RefreshCw size={10} />
@@ -77,11 +89,10 @@ export function OnCall() {
                   <p className="text-xs text-text-muted mb-2">Current On-Call</p>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
-                      {schedule.currentOnCall.name.split(' ').map((n) => n[0]).join('')}
+                      {schedule.currentOnCallId ? schedule.currentOnCallId.slice(0, 2).toUpperCase() : '—'}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-text-primary truncate">{schedule.currentOnCall.name}</p>
-                      <p className="text-xs text-text-muted truncate">{schedule.currentOnCall.role}</p>
+                      <p className="text-sm font-semibold text-text-primary truncate">{schedule.currentOnCallId ?? 'Unassigned'}</p>
                     </div>
                     <span className="ml-auto w-2 h-2 rounded-full bg-low shrink-0" />
                   </div>
@@ -95,11 +106,10 @@ export function OnCall() {
                   <p className="text-xs text-text-muted mb-2">Next On-Call</p>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-surface-highlight flex items-center justify-center text-text-secondary text-xs font-bold shrink-0">
-                      {schedule.nextOnCall.name.split(' ').map((n) => n[0]).join('')}
+                      {schedule.nextOnCallId ? schedule.nextOnCallId.slice(0, 2).toUpperCase() : '—'}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">{schedule.nextOnCall.name}</p>
-                      <p className="text-xs text-text-muted truncate">{schedule.nextOnCall.role}</p>
+                      <p className="text-sm font-medium text-text-primary truncate">{schedule.nextOnCallId ?? 'Unassigned'}</p>
                     </div>
                   </div>
                   <p className="text-xs text-text-muted mt-2">
@@ -116,7 +126,7 @@ export function OnCall() {
       <section>
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Team Directory</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {mockTeamMembers.map((member) => (
+          {members.map((member: any) => (
             <div key={member.id} className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -125,7 +135,7 @@ export function OnCall() {
                   color: member.isOnCall ? '#FF6200' : '#B0A8C8',
                 }}
               >
-                {member.name.split(' ').map((n) => n[0]).join('')}
+                {member.name.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

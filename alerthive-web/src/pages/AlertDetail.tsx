@@ -1,7 +1,8 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Box, Tag, User, Clock, MoreHorizontal, Cpu, Building2, ExternalLink, Zap, Repeat2 } from 'lucide-react';
-import { mockAlerts, mockCMDBAssets } from '../data/mockData';
+import { mockCMDBAssets } from '../data/mockData';
+import { apiGet, apiPatch } from '../lib/api';
 import { Alert, AlertPriority, AlertStatus } from '../types';
 
 const priorityConfig: Record<AlertPriority, { color: string; bg: string; label: string }> = {
@@ -91,7 +92,7 @@ function AutoRemediationPanel({ alert }: { alert: Alert }) {
   const data = getRemediationSteps(alert);
   if (!data) return null;
   return (
-    <div className="bg-[#111827] border border-info/30 rounded-xl p-4 mb-4">
+    <div className="bg-surface-light border border-info/30 rounded-xl p-4 mb-4">
       <button
         className="w-full flex items-center justify-between group"
         onClick={() => setExpanded((v) => !v)}
@@ -109,7 +110,7 @@ function AutoRemediationPanel({ alert }: { alert: Alert }) {
       {expanded && (
         <ol className="mt-3 space-y-2 pl-1">
           {data.steps.map((step, i) => (
-            <li key={i} className="flex gap-3 text-sm text-[#CBD5E1]">
+            <li key={i} className="flex gap-3 text-sm text-text-secondary">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-info/20 text-info text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
               <span className="font-mono text-xs leading-relaxed">{step}</span>
             </li>
@@ -129,9 +130,33 @@ export function AlertDetail() {
   const { alertId } = useParams<{ alertId: string }>();
   const navigate = useNavigate();
 
-  const alert = mockAlerts.find((a) => a.id === alertId);
-  const [currentStatus, setCurrentStatus] = useState<AlertStatus>(alert?.status ?? 'open');
+  const [alert, setAlert] = useState<Alert | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState<AlertStatus>('open');
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!alertId) return;
+    setLoading(true);
+    apiGet<Alert>(`/alerts/${alertId}`)
+      .then((r) => {
+        if (r.data) {
+          setAlert(r.data);
+          setCurrentStatus(r.data.status);
+        }
+      })
+      .catch(() => setAlert(null))
+      .finally(() => setLoading(false));
+  }, [alertId]);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-text-muted">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm">Loading alert...</p>
+      </div>
+    );
+  }
 
   if (!alert) {
     return (
@@ -158,22 +183,21 @@ export function AlertDetail() {
   };
 
   const handleAction = (action: string) => {
-    switch (action) {
-      case 'acknowledge':
-        setCurrentStatus('acknowledged');
-        showToast('Alert acknowledged');
-        break;
-      case 'close':
-        setCurrentStatus('closed');
-        showToast('Alert closed');
-        break;
-      case 'snooze':
-        setCurrentStatus('snoozed');
-        showToast('Alert snoozed for 1 hour');
-        break;
-      case 'escalate':
-        showToast('Alert escalated to next responder');
-        break;
+    const statusMap: Record<string, AlertStatus> = {
+      acknowledge: 'acknowledged',
+      close: 'closed',
+      snooze: 'snoozed',
+    };
+    const newStatus = statusMap[action];
+    if (newStatus) {
+      apiPatch(`/alerts/${alertId}/status`, { status: newStatus })
+        .then(() => {
+          setCurrentStatus(newStatus);
+          showToast(action === 'acknowledge' ? 'Alert acknowledged' : action === 'close' ? 'Alert closed' : 'Alert snoozed for 1 hour');
+        })
+        .catch(() => showToast('Failed to update status'));
+    } else if (action === 'escalate') {
+      showToast('Alert escalated to next responder');
     }
   };
 
@@ -319,7 +343,7 @@ export function AlertDetail() {
           </div>
           <div className="space-y-2">
             {relatedAssets.map((asset) => (
-              <div key={asset.id} className="flex items-center justify-between p-3 bg-[#0D0D1A] rounded-lg border border-border">
+              <div key={asset.id} className="flex items-center justify-between p-3 bg-surface-light rounded-lg border border-border">
                 <div className="flex items-center gap-2 min-w-0">
                   <Cpu size={14} className="text-primary shrink-0" />
                   <div className="min-w-0">
@@ -328,9 +352,9 @@ export function AlertDetail() {
                   </div>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                  asset.criticality === 'critical' ? 'bg-red-500/20 text-red-400' :
-                  asset.criticality === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                  'bg-amber-500/20 text-amber-400'
+                  asset.criticality === 'critical' ? 'bg-critical/20 text-critical' :
+                  asset.criticality === 'high' ? 'bg-high/20 text-high' :
+                  'bg-medium/20 text-medium'
                 }`}>{asset.criticality}</span>
               </div>
             ))}

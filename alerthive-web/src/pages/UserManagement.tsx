@@ -440,7 +440,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-3">
+    <div className="p-4 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -504,6 +504,7 @@ export default function UserManagement() {
 
       {/* Table */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border text-xs text-text-muted uppercase tracking-wider">
@@ -585,6 +586,7 @@ export default function UserManagement() {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Footer count */}
         {!loading && filtered.length > 0 && (
